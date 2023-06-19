@@ -8,8 +8,7 @@ enum class Foo {
 };
 
 int main() {
-    rain_net::Message<Foo> message;
-    message.header.id = Foo::Two;
+    rain_net::Message<Foo> message = rain_net::new_message(Foo::Two, 20);
 
     message << 1 << 2 << 3;
 

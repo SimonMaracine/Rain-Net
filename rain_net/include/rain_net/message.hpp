@@ -11,7 +11,6 @@ namespace rain_net {
     struct MsgHeader {
         MsgHeader() {
             static_assert(std::is_enum_v<E>, "Type must be an enumeration");
-            static_assert(sizeof(E) <= 8, "Enum must be at most 8 bytes in size");
         }
 
         E id {};
@@ -19,23 +18,27 @@ namespace rain_net {
     };
 
     template<typename E>
-    struct Message {
-        MsgHeader<E> header;
-        std::vector<uint8_t> payload;
-
+    class Message {
+    public:
         size_t size() const {
-            return sizeof(MsgHeader<E>) + payload.size();
+            return sizeof(MsgHeader<E>) + header.payload_size;
+        }
+
+        E id() const {
+            return header.id;
         }
 
         template<typename T>
-        Message& operator<<(const T& data) {  // TODO optimize
+        Message& operator<<(const T& data) {
             static_assert(
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
 
             payload.resize(payload.size() + sizeof(T));
-            std::memcpy(payload.data() + payload.size() - sizeof(T), &data, sizeof(T));
+
+            std::memcpy(payload.data() + stream_pointer, &data, sizeof(T));
+            stream_pointer += sizeof(T);
 
             header.payload_size = payload.size();
 
@@ -43,19 +46,31 @@ namespace rain_net {
         }
 
         template<typename T>
-        Message& operator>>(T& data) {  // TODO optimize
+        Message& operator>>(T& data) {
             static_assert(
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
 
-            std::memcpy(&data, payload.data() + payload.size() - sizeof(T), sizeof(T));
-            payload.resize(payload.size() - sizeof(T));
+            stream_pointer -= sizeof(T);
+            std::memcpy(&data, payload.data() + stream_pointer, sizeof(T));
 
-            // FIXME what about header.payload_size?
+            // TODO what about header.payload_size?
 
             return *this;
         }
+    private:
+        Message() = default;
+
+        MsgHeader<E> header;
+        std::vector<uint8_t> payload;
+        size_t stream_pointer = 0;
+
+        template<typename F>
+        friend std::ostream& operator<<(std::ostream& stream, const Message<F>& message);
+
+        template<typename F>
+        friend Message<F> new_message(F id, size_t size_reserved);
     };
 
     template<typename E>
@@ -64,9 +79,18 @@ namespace rain_net {
             << "Message { ID: "
             << static_cast<std::underlying_type_t<E>>(message.header.id)
             << ", payload: "
-            << message.payload.size()
+            << message.header.payload_size
             << " B }";
 
         return stream;
+    }
+
+    template<typename E>
+    Message<E> new_message(E id, size_t size_reserved) {
+        Message<E> message;
+        message.header.id = id;
+        message.payload.reserve(size_reserved);
+
+        return message;
     }
 }
