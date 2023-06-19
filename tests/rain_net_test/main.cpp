@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <rain_net/message.hpp>
+#include <rain_net/connection.hpp>
 
 enum class Foo {
     One,

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <type_traits>
+#include <memory>
 
 namespace rain_net {
     template<typename E>
@@ -74,6 +75,15 @@ namespace rain_net {
     };
 
     template<typename E>
+    class Connection;
+
+    template<typename E>
+    struct OwnedMessage {
+        Message<E> msg;
+        std::shared_ptr<Connection<E>> remote;
+    };
+
+    template<typename E>
     std::ostream& operator<<(std::ostream& stream, const Message<E>& message) {
         stream
             << "Message { ID: "
@@ -81,6 +91,13 @@ namespace rain_net {
             << ", payload: "
             << message.header.payload_size
             << " B }";
+
+        return stream;
+    }
+
+    template<typename E>
+    std::ostream& operator<<(std::ostream& stream, const OwnedMessage<E>& message) {
+        stream << message;
 
         return stream;
     }
