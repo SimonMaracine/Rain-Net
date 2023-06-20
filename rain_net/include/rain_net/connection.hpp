@@ -2,8 +2,8 @@
 
 #include <asio/ts/internet.hpp>
 
-#include "rain_net/message.hpp"
-#include "rain_net/queue.hpp"
+#include "message.hpp"
+#include "queue.hpp"
 
 namespace rain_net {
     template<typename E>

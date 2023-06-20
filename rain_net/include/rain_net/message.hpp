@@ -9,7 +9,7 @@
 
 namespace rain_net {
     template<typename E>
-    struct MsgHeader {
+    struct MsgHeader final {  // TODO hide this
         MsgHeader() {
             static_assert(std::is_enum_v<E>, "Type must be an enumeration");
         }
@@ -19,7 +19,7 @@ namespace rain_net {
     };
 
     template<typename E>
-    class Message {
+    class Message final {
     public:
         size_t size() const {
             return sizeof(MsgHeader<E>) + header.payload_size;
@@ -78,7 +78,7 @@ namespace rain_net {
     class Connection;
 
     template<typename E>
-    struct OwnedMessage {
+    struct OwnedMessage final {
         Message<E> msg;
         std::shared_ptr<Connection<E>> remote;
     };

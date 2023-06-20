@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-option(BUILD_TESTS OFF "Enable building tests or not")
+option(RAIN_NET_BUILD_TESTS OFF "Enable building tests or not")
 
 project("Rain Net" LANGUAGES CXX)
 
