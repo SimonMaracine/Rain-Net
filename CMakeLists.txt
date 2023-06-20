@@ -6,6 +6,6 @@ project("Rain Net" LANGUAGES CXX)
 
 add_subdirectory("rain_net")
 
-if(${BUILD_TESTS})
+if(${RAIN_NET_BUILD_TESTS})
     add_subdirectory("tests")
 endif()

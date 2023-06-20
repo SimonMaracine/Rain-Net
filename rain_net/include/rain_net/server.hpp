@@ -29,6 +29,11 @@ namespace rain_net {
             stop();
         }
 
+        Server(const Server&) = delete;
+        Server& operator=(const Server&) = delete;
+        Server(Server&&) = delete;
+        Server& operator=(Server&&) = delete;
+
         bool start() {
             // Handle some work to the context before it closes automatically
             task_wait_for_connection();  // TODO error check
@@ -136,7 +141,7 @@ namespace rain_net {
         // Return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
-        virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) {}
+        virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
         virtual void on_message(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
 

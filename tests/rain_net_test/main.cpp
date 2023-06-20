@@ -21,4 +21,9 @@ int main() {
     std::cout << a << ' ' << b << ' ' << c << '\n';
 
     std::cout << message << '\n';
+
+    asio::io_context ctx;
+    rain_net::Queue<rain_net::OwnedMessage<Foo>> q;
+
+    [[maybe_unused]] rain_net::Connection<Foo>* conn = new rain_net::ClientConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), 0);
 }

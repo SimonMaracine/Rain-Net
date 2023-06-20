@@ -9,6 +9,12 @@
 
 namespace rain_net {
     template<typename E>
+    class Connection;
+
+    template<typename F>
+    class ClientConnection;
+
+    template<typename E>
     struct MsgHeader final {  // TODO hide this
         MsgHeader() {
             static_assert(std::is_enum_v<E>, "Type must be an enumeration");
@@ -72,10 +78,13 @@ namespace rain_net {
 
         template<typename F>
         friend Message<F> new_message(F id, size_t size_reserved);
-    };
 
-    template<typename E>
-    class Connection;
+        template<typename F>
+        friend class Connection;
+
+        template<typename F>
+        friend class ClientConnection;
+    };
 
     template<typename E>
     struct OwnedMessage final {
