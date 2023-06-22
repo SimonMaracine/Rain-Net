@@ -30,8 +30,6 @@ namespace rain_net {
         Client& operator=(Client&&) = delete;
 
         bool connect(std::string_view host, uint16_t port) {
-            connection = std::make_unique<Connection<E>>();  // TODO
-
             asio::error_code ec;
 
             asio::ip::tcp::resolver resolver {asio_context};
@@ -44,7 +42,11 @@ namespace rain_net {
                 return false;
             }
 
-            connection->connect(endpoints);
+            connection = std::make_unique<ServerConnection<E>>(
+                &asio_context, &incoming_messages, std::move(temporary_socket), std::move(endpoints)
+            );
+
+            connection->connect();
 
             context_thread = std::thread([&asio_context]() {
                 asio_context.run();

@@ -67,8 +67,6 @@ namespace rain_net {
             return *this;
         }
     private:
-        Message() = default;
-
         MsgHeader<E> header;
         std::vector<uint8_t> payload;
         size_t stream_pointer = 0;
@@ -81,9 +79,6 @@ namespace rain_net {
 
         template<typename F>
         friend class Connection;
-
-        template<typename F>
-        friend class ClientConnection;
     };
 
     template<typename E>

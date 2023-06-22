@@ -76,15 +76,18 @@ namespace rain_net {
                     } else {
                         std::cout << "Accepted new connection " << socket.remote_endpoint() << '\n';
 
-                        auto new_connection = std::make_shared<Connection<E>>(&asio_context, &incoming_messages, std::move(socket));
+                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<ClientConnection<E>>(
+                            &asio_context, &incoming_messages, std::move(socket), client_id_counter++
+                        );
 
                         if (on_client_connected(new_connection)) {
-                            new_connection->connect(client_id_counter++);  // TODO ?
+                            new_connection->connect();
                             active_connections.push_back(std::move(new_connection));
 
                             std::cout << "Approved connection " << active_connections.back().id() << '\n';  // TODO logging
                         } else {
                             std::cout << "Actively rejected connection\n";
+                            client_id_counter--;  // Take back the unused id
                         }
                     }
 
