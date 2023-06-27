@@ -16,7 +16,7 @@ public:
     }
 
     virtual void on_client_disconnected(std::shared_ptr<rain_net::Connection<MsgType>> client_connection) override {
-
+        std::cout << "Removed client " << client_connection->get_id() << '\n';
     }
 
     virtual void on_message_received(std::shared_ptr<rain_net::Connection<MsgType>> client_connection, rain_net::Message<MsgType>& message) override {
@@ -25,7 +25,7 @@ public:
                 std::cout << "Ping request from " << client_connection->get_id() << '\n';
 
                 // Just send the same message back
-                client_connection->send(message);
+                message_client(client_connection, message);
 
                 break;
             }
@@ -34,7 +34,7 @@ public:
 };
 
 int main() {
-    ThisServer server {6008};
+    ThisServer server {6010};
     server.start();
 
     while (true) {

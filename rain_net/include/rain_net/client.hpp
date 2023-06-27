@@ -47,7 +47,7 @@ namespace rain_net {
             }
 
             connection = std::make_unique<ServerConnection<E>>(
-                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), std::move(endpoints)
+                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints  // TODO move?
             );
 
             connection->try_connect();

@@ -32,5 +32,5 @@ int main() {
     asio::ip::tcp::resolver resolver {ctx};
     auto endpoints = resolver.resolve("localhost", "12345");
 
-    [[maybe_unused]] rain_net::Connection<Foo>* conn2 = new rain_net::ServerConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), std::move(endpoints));
+    [[maybe_unused]] rain_net::Connection<Foo>* conn2 = new rain_net::ServerConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints);
 }

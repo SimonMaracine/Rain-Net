@@ -86,8 +86,8 @@ namespace rain_net {
 
                 // Remove this specific client from the list
                 active_connections.erase(
-                    std::remove(active_connections.cbegin(), active_connections.cend(), client_connection),
-                    active_connections.cend()
+                    std::remove(active_connections.begin(), active_connections.end(), client_connection),
+                    active_connections.end()
                 );
             }
         }

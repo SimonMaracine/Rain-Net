@@ -32,9 +32,11 @@ namespace rain_net {
         }
 
         void disconnect() {
-            if (is_connected()) {
-                task_close_socket();
+            if (!is_connected()) {
+                return;
             }
+
+            task_close_socket();
         }
 
         bool is_connected() const {
@@ -58,7 +60,6 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
-                        // TODO does it read it all?
                         assert(size == sizeof(MsgHeader<E>));
 
                         // Check if there is a payload to read
@@ -77,6 +78,8 @@ namespace rain_net {
         }
 
         void task_read_payload() {
+            assert(current_incoming_message.payload.size() == current_incoming_message.header.payload_size);
+
             asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
@@ -85,6 +88,8 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
+                        assert(size == current_incoming_message.header.payload_size);
+
                         add_to_incoming_messages();
                         task_read_header();
                     }
@@ -94,6 +99,7 @@ namespace rain_net {
 
         void task_write_header() {
             static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);  // FIXME good?
+            assert(!outgoing_messages.empty());
 
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
@@ -103,6 +109,8 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
+                        assert(size == sizeof(MsgHeader<E>));
+
                         // Check if there is a payload to write
                         if (outgoing_messages.front().header.payload_size > 0) {
                             task_write_payload();
@@ -120,6 +128,9 @@ namespace rain_net {
         }
 
         void task_write_payload() {
+            assert(!outgoing_messages.empty());
+            assert(outgoing_messages.front().payload.size() == outgoing_messages.front().header.payload_size);
+
             asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
@@ -128,6 +139,8 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
+                        assert(size == outgoing_messages.front().header.payload_size);
+
                         // Finish with this message
                         outgoing_messages.pop_front();
 
@@ -187,6 +200,8 @@ namespace rain_net {
         ClientConnection& operator=(ClientConnection&&) = delete;
 
         virtual void try_connect() override {  // Connect to client
+            assert(this->is_connected());
+
             this->task_read_header();
         }
 
@@ -199,7 +214,7 @@ namespace rain_net {
             owned_message.msg = this->current_incoming_message;
             owned_message.remote = this->shared_from_this();  // This distinction is important
 
-            this->incoming_messages->push_back(std::move(owned_message));
+            this->incoming_messages->push_back(owned_message);  // TODO move?
 
             this->current_incoming_message = {};
         }
@@ -211,8 +226,8 @@ namespace rain_net {
     template<typename E>
     class ServerConnection final : public Connection<E> {
     public:
-        ServerConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, asio::ip::tcp::resolver::results_type&& endpoints)
-            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(std::move(endpoints)) {}
+        ServerConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, const asio::ip::tcp::resolver::results_type& endpoints)
+            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints) {}
 
         virtual ~ServerConnection() = default;
 
@@ -230,7 +245,7 @@ namespace rain_net {
             owned_message.msg = this->current_incoming_message;
             owned_message.remote = nullptr;  // This distinction is important
 
-            this->incoming_messages->push_back(std::move(owned_message));
+            this->incoming_messages->push_back(owned_message);
 
             this->current_incoming_message = {};
         }
@@ -238,16 +253,20 @@ namespace rain_net {
         void task_connect_to_server() {
             asio::async_connect(this->tcp_socket, endpoints,
                 [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
+                    std::cout << "HELLOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO" << std::endl;
+
                     if (ec) {
-                        std::cout << "Could not connect to the server\n";
+                        std::cout << "Could not connect to server\n";
 
                         // Close the connection on this side; the remote will pick this up
                         this->tcp_socket.close();
 
                         return;
-                    }
+                    } else {
+                        std::cout << "Successfully connected to " << endpoint << '\n';
 
-                    this->task_read_header();
+                        this->task_read_header();
+                    }
                 }
             );
         }

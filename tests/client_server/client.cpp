@@ -23,7 +23,7 @@ public:
 int main() {
     ThisClient client;
 
-    if (!client.connect("localhost", 6008)) {
+    if (!client.connect("localhost", 6010)) {
         return 1;
     }
 
@@ -35,15 +35,12 @@ int main() {
 
             break;
         } else {
-            static bool once = true;
+            std::cout << "CONNECTED!!!\n";
 
-            if (once) {
-                std::cout << "CONNECTED!!!\n";
-                // client.ping_server();
-            }
-
-            once = false;
+            client.ping_server();
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(60));
 
         if (!client.incoming_messages.empty()) {
             auto message = client.incoming_messages.pop_front().msg;

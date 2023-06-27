@@ -42,10 +42,10 @@ namespace rain_net {
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
 
-            payload.resize(payload.size() + sizeof(T));
+            const size_t write_position = payload.size();
 
-            std::memcpy(payload.data() + stream_pointer, &data, sizeof(T));
-            stream_pointer += sizeof(T);
+            payload.resize(payload.size() + sizeof(T));
+            std::memcpy(payload.data() + write_position, &data, sizeof(T));
 
             header.payload_size = payload.size();
 
@@ -59,17 +59,18 @@ namespace rain_net {
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
 
-            stream_pointer -= sizeof(T);
-            std::memcpy(&data, payload.data() + stream_pointer, sizeof(T));
+            const size_t read_position = payload.size() - sizeof(T);
 
-            // TODO what about header.payload_size?
+            std::memcpy(&data, payload.data() + read_position, sizeof(T));
+            payload.resize(read_position);
+
+            // Don't reset header.payload_size
 
             return *this;
         }
     private:
         MsgHeader<E> header;
         std::vector<uint8_t> payload;
-        size_t stream_pointer = 0;
 
         template<typename F>
         friend std::ostream& operator<<(std::ostream& stream, const Message<F>& message);
