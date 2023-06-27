@@ -7,20 +7,21 @@
 #include <string>
 #include <iostream>  // TODO logging
 
+#define ASIO_STANDALONE
 #include <asio.hpp>
 #include <asio/ts/internet.hpp>
 
-#include "message.hpp"
 #include "queue.hpp"
+#include "message.hpp"
+#include "connection.hpp"
 
 namespace rain_net {
     template<typename E>
-    class Client final {
+    class Client {
     public:
-        Client()
-            : temporary_socket(asio_context) {}
+        Client() = default;
 
-        ~Client() {
+        virtual ~Client() {
             disconnect();
         }
 
@@ -30,32 +31,41 @@ namespace rain_net {
         Client& operator=(Client&&) = delete;
 
         bool connect(std::string_view host, uint16_t port) {
+            if (!valid) {
+                return false;
+            }
+
             asio::error_code ec;
 
             asio::ip::tcp::resolver resolver {asio_context};
             auto endpoints = resolver.resolve(host, std::to_string(port), ec);
 
             if (ec) {
-                // TODO logging
+                std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
 
-                std::cout << "Could not resolve host: " << ec.message() << '\n';
                 return false;
             }
 
             connection = std::make_unique<ServerConnection<E>>(
-                &asio_context, &incoming_messages, std::move(temporary_socket), std::move(endpoints)
+                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), std::move(endpoints)
             );
 
-            connection->connect();
+            connection->try_connect();
 
-            context_thread = std::thread([&asio_context]() {
+            context_thread = std::thread([this]() {
                 asio_context.run();
             });
+
+            std::cout << "Trying to connect to server on port " << port << "...\n";
 
             return true;
         }
 
         void disconnect() {
+            if (!valid) {
+                return;
+            }
+
             if (is_connected()) {
                 connection->disconnect();
             }
@@ -63,6 +73,8 @@ namespace rain_net {
             asio_context.stop();
             context_thread.join();
             connection.reset();
+
+            valid = false;
         }
 
         bool is_connected() const {
@@ -73,13 +85,26 @@ namespace rain_net {
             return connection->is_connected();
         }
 
-        Queue<OwnedMessage<E>> incoming_messages;
-    private:
-        std::unique_ptr<Connection<E>> connection;
+        void send(const Message<E>& message) {
+            if (!valid) {
+                return;
+            }
 
+            if (!is_connected()) {
+                std::cout << "Inconnected\n";
+                return;
+            }
+
+            connection->send(message);
+            std::cout << "Sent message " << message << '\n';
+        }
+
+        Queue<OwnedMessage<E>> incoming_messages;
+        std::unique_ptr<Connection<E>> connection;
+    private:
         asio::io_context asio_context;
         std::thread context_thread;
 
-        asio::ip::tcp::socket temporary_socket;  // TODO ?
+        bool valid = true;
     };
 }

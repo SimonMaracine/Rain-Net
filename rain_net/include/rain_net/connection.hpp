@@ -3,6 +3,7 @@
 #include <utility>
 #include <memory>
 
+#define ASIO_STANDALONE
 #include <asio.hpp>
 #include <asio/ts/internet.hpp>
 #include <asio/ts/buffer.hpp>
@@ -17,17 +18,17 @@ namespace rain_net {
         Connection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
             : asio_context(asio_context), incoming_messages(incoming_messages), tcp_socket(std::move(tcp_socket)) {}
 
-        virtual ~Connection() = default;
+        virtual ~Connection() = default;  // FIXME hmm
 
         Connection(const Connection&) = delete;
         Connection& operator=(const Connection&) = delete;
         Connection(Connection&&) = delete;
         Connection& operator=(Connection&&) = delete;
 
-        virtual void connect() = 0;
+        virtual void try_connect() = 0;
 
         virtual uint32_t get_id() const {
-            return 0;
+            return 0;  // This means it's a connection to the server
         }
 
         void disconnect() {
@@ -102,10 +103,11 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
-                        // Check if there is a payload to read
+                        // Check if there is a payload to write
                         if (outgoing_messages.front().header.payload_size > 0) {
                             task_write_payload();
                         } else {
+                            // Finish with this message
                             outgoing_messages.pop_front();
 
                             if (!outgoing_messages.empty()) {  // Thus writing tasks can stop
@@ -126,6 +128,7 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
+                        // Finish with this message
                         outgoing_messages.pop_front();
 
                         if (!outgoing_messages.empty()) {  // Thus writing tasks can stop
@@ -138,11 +141,11 @@ namespace rain_net {
 
         void task_send_message(const Message<E>& message) {
             // This really needs to be a task
-            asio::post(asio_context,
-                [this, &message]() {
+            asio::post(*asio_context,
+                [this, message]() {
                     const bool writing_tasks_stopped = outgoing_messages.empty();
 
-                    outgoing_messages.push_bask(message);
+                    outgoing_messages.push_back(message);
 
                     // Restart the writing process, if it has stopped before
                     if (writing_tasks_stopped) {
@@ -153,7 +156,7 @@ namespace rain_net {
         }
 
         void task_close_socket() {
-            asio::post(asio_context,
+            asio::post(*asio_context,
                 [this]() {
                     tcp_socket.close();
                 }
@@ -171,7 +174,7 @@ namespace rain_net {
 
     // Owner of this is the server
     template<typename E>
-    class ClientConnection final : public Connection<E> {
+    class ClientConnection final : public Connection<E>, std::enable_shared_from_this<ClientConnection<E>> {
     public:
         ClientConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
             : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {}
@@ -183,11 +186,7 @@ namespace rain_net {
         ClientConnection(ClientConnection&&) = delete;
         ClientConnection& operator=(ClientConnection&&) = delete;
 
-        virtual void connect() override {  // Connect to client
-            if (!this->tcp_socket.is_open()) {
-                return;
-            }
-
+        virtual void try_connect() override {  // Connect to client
             this->task_read_header();
         }
 
@@ -198,9 +197,11 @@ namespace rain_net {
         virtual void add_to_incoming_messages() override {
             OwnedMessage<E> owned_message;
             owned_message.msg = this->current_incoming_message;
-            owned_message.remote = nullptr;  // This distinction is important
+            owned_message.remote = this->shared_from_this();  // This distinction is important
 
             this->incoming_messages->push_back(std::move(owned_message));
+
+            this->current_incoming_message = {};
         }
 
         uint32_t client_id = 0;
@@ -208,7 +209,7 @@ namespace rain_net {
 
     // Owner of this is the client
     template<typename E>
-    class ServerConnection final : public Connection<E>, std::enable_shared_from_this<ServerConnection<E>> {
+    class ServerConnection final : public Connection<E> {
     public:
         ServerConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, asio::ip::tcp::resolver::results_type&& endpoints)
             : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(std::move(endpoints)) {}
@@ -220,16 +221,18 @@ namespace rain_net {
         ServerConnection(ServerConnection&&) = delete;
         ServerConnection& operator=(ServerConnection&&) = delete;
 
-        virtual void connect() override {  // Connect to server
-            task_connect_to_server();;
+        virtual void try_connect() override {  // Connect to server
+            task_connect_to_server();
         }
     private:
         virtual void add_to_incoming_messages() override {
             OwnedMessage<E> owned_message;
             owned_message.msg = this->current_incoming_message;
-            owned_message.remote = this->shared_from_this();  // This distinction is important
+            owned_message.remote = nullptr;  // This distinction is important
 
             this->incoming_messages->push_back(std::move(owned_message));
+
+            this->current_incoming_message = {};
         }
 
         void task_connect_to_server() {
@@ -237,6 +240,9 @@ namespace rain_net {
                 [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
                     if (ec) {
                         std::cout << "Could not connect to the server\n";
+
+                        // Close the connection on this side; the remote will pick this up
+                        this->tcp_socket.close();
 
                         return;
                     }

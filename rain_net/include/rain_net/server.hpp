@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits>
 
+#define ASIO_STANDALONE
 #include <asio.hpp>
 #include <asio/ts/internet.hpp>
 
@@ -21,9 +22,7 @@ namespace rain_net {
     class Server {
     public:
         Server(uint16_t port)
-            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
-
-        }
+            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), port(port) {}
 
         virtual ~Server() {
             stop();
@@ -34,7 +33,7 @@ namespace rain_net {
         Server(Server&&) = delete;
         Server& operator=(Server&&) = delete;
 
-        bool start() {
+        void start() {
             // Handle some work to the context before it closes automatically
             task_wait_for_connection();  // TODO error check
 
@@ -42,18 +41,14 @@ namespace rain_net {
                 asio_context.run();
             });
 
-            std::cout << "Server started\n";  // TODO logging
-
-            return true;
+            std::cout << "Server started on port " << port << '\n';  // TODO logging
         }
 
-        bool stop() {
+        void stop() {
             asio_context.stop();
             context_thread.join();
 
             std::cout << "Server stopped\n";  // TODO logging
-
-            return true;
         }
 
         void update(const uint32_t max_messages = std::numeric_limits<uint32_t>::max()) {
@@ -62,39 +57,23 @@ namespace rain_net {
             while (messages_processed < max_messages && !incoming_messages.empty()) {
                 OwnedMessage<E> message = incoming_messages.pop_front();
 
-                on_message(message.remote, message.msg);
+                on_message_received(message.remote, message.msg);
 
                 messages_processed++;
             }
         }
+    protected:
+        // TODO find a way to name these
+        // using ClientConnection = Connection<E>;
+        // using Message = Message<E>;
 
-        void task_wait_for_connection() {
-            acceptor.async_accept(
-                [this](asio::error_code ec, asio::ip::tcp::socket socket) {
-                    if (ec) {
-                        std::cout << "Could not accept new connection: " << ec.message() << '\n';  // TODO logging
-                    } else {
-                        std::cout << "Accepted new connection " << socket.remote_endpoint() << '\n';
+        // Return false to reject the client, true otherwise
+        virtual bool on_client_connected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
-                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<ClientConnection<E>>(
-                            &asio_context, &incoming_messages, std::move(socket), client_id_counter++
-                        );
+        virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
-                        if (on_client_connected(new_connection)) {
-                            new_connection->connect();
-                            active_connections.push_back(std::move(new_connection));
-
-                            std::cout << "Approved connection " << active_connections.back().id() << '\n';  // TODO logging
-                        } else {
-                            std::cout << "Actively rejected connection\n";
-                            client_id_counter--;  // Take back the unused id
-                        }
-                    }
-
-                    task_wait_for_connection();
-                }
-            );
-        }
+        // Message<E> must be mutable
+        virtual void on_message_received(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
 
         void message_client(std::shared_ptr<Connection<E>> client_connection, const Message<E>& message) {
             assert(client_connection != nullptr);  // TODO maybe just check
@@ -140,22 +119,46 @@ namespace rain_net {
                 );
             }
         }
-    protected:
-        // Return false to reject the client, true otherwise
-        virtual bool on_client_connected(std::shared_ptr<Connection<E>> client_connection) = 0;
-
-        virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) = 0;
-
-        virtual void on_message(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
 
         Queue<OwnedMessage<E>> incoming_messages;
         std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO protected? deque?
     private:
+        void task_wait_for_connection() {
+            acceptor.async_accept(
+                [this](asio::error_code ec, asio::ip::tcp::socket socket) {
+                    if (ec) {
+                        std::cout << "Could not accept new connection: " << ec.message() << '\n';  // TODO logging
+                    } else {
+                        std::cout << "Accepted new connection " << socket.remote_endpoint() << '\n';
+
+                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<ClientConnection<E>>(
+                            &asio_context, &incoming_messages, std::move(socket), ++client_id_counter
+                        );
+
+                        if (on_client_connected(new_connection)) {
+                            active_connections.push_back(std::move(new_connection));
+
+                            active_connections.back()->try_connect();
+
+                            std::cout << "Approved connection " << active_connections.back()->get_id() << '\n';  // TODO logging
+                        } else {
+                            std::cout << "Actively rejected connection\n";
+                            client_id_counter--;  // Take back the unused id
+                        }
+                    }
+
+                    task_wait_for_connection();
+                }
+            );
+        }
+
         asio::io_context asio_context;
         std::thread context_thread;
 
         asio::ip::tcp::acceptor acceptor;
 
-        uint32_t client_id_counter = 0;
+        uint32_t client_id_counter = 0;  // 0 is invalid
+
+        uint16_t port = 0;
     };
 }
