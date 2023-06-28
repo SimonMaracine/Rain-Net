@@ -31,8 +31,8 @@ namespace rain_net {
         Client& operator=(Client&&) = delete;
 
         bool connect(std::string_view host, uint16_t port) {
-            if (!valid) {
-                return false;
+            if (asio_context.stopped()) {
+                asio_context.restart();
             }
 
             asio::error_code ec;
@@ -60,19 +60,14 @@ namespace rain_net {
         }
 
         void disconnect() {
-            if (!valid) {
+            if (connection == nullptr) {
                 return;
             }
 
-            if (is_connected()) {
-                connection->disconnect();
-            }
-
+            connection->disconnect();
             asio_context.stop();
             context_thread.join();
             connection.reset();
-
-            valid = false;
         }
 
         bool is_connected() const {
@@ -84,7 +79,7 @@ namespace rain_net {
         }
 
         void send(const Message<E>& message) {
-            if (!valid) {
+            if (connection == nullptr) {
                 return;
             }
 
@@ -102,7 +97,5 @@ namespace rain_net {
     private:
         asio::io_context asio_context;
         std::thread context_thread;
-
-        bool valid = true;
     };
 }
