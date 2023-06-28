@@ -2,6 +2,8 @@
 
 #include <utility>
 #include <memory>
+#include <atomic>
+#include <cassert>
 
 #define ASIO_STANDALONE
 #include <asio.hpp>
@@ -32,7 +34,7 @@ namespace rain_net {
         }
 
         void disconnect() {
-            if (!is_connected()) {
+            if (!tcp_socket.is_open()) {
                 return;
             }
 
@@ -44,13 +46,13 @@ namespace rain_net {
         }
 
         void send(const Message<E>& message) {
-            task_send_message(message);
+            task_try_send_message(message);
         }
     protected:
         virtual void add_to_incoming_messages() = 0;
 
         void task_read_header() {
-            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);  // FIXME good?
+            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);
 
             asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
@@ -98,7 +100,7 @@ namespace rain_net {
         }
 
         void task_write_header() {
-            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);  // FIXME good?
+            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);
             assert(!outgoing_messages.empty());
 
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(MsgHeader<E>)),
@@ -152,6 +154,18 @@ namespace rain_net {
             );
         }
 
+        void task_try_send_message(const Message<E>& message) {  // TODO this is slow
+            asio::post(*asio_context,
+                [this, message]() {
+                    if (!established_connection.load()) {
+                        task_try_send_message(message);
+                    } else {
+                        task_send_message(message);
+                    }
+                }
+            );
+        }
+
         void task_send_message(const Message<E>& message) {
             // This really needs to be a task
             asio::post(*asio_context,
@@ -183,14 +197,20 @@ namespace rain_net {
         Queue<Message<E>> outgoing_messages;
 
         Message<E> current_incoming_message;
+
+        // Set to true only once at the beginning
+        std::atomic<bool> established_connection = false;
     };
 
     // Owner of this is the server
     template<typename E>
-    class ClientConnection final : public Connection<E>, std::enable_shared_from_this<ClientConnection<E>> {
+    class ClientConnection final : public Connection<E>, public std::enable_shared_from_this<ClientConnection<E>> {
     public:
         ClientConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
-            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {}
+            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
+            // The connection has established before
+            this->established_connection.store(true);
+        }
 
         virtual ~ClientConnection() = default;
 
@@ -200,7 +220,7 @@ namespace rain_net {
         ClientConnection& operator=(ClientConnection&&) = delete;
 
         virtual void try_connect() override {  // Connect to client
-            assert(this->is_connected());
+            std::cout << "Connecting to client...\n";
 
             this->task_read_header();
         }
@@ -214,7 +234,7 @@ namespace rain_net {
             owned_message.msg = this->current_incoming_message;
             owned_message.remote = this->shared_from_this();  // This distinction is important
 
-            this->incoming_messages->push_back(owned_message);  // TODO move?
+            this->incoming_messages->push_back(std::move(owned_message));
 
             this->current_incoming_message = {};
         }
@@ -237,6 +257,8 @@ namespace rain_net {
         ServerConnection& operator=(ServerConnection&&) = delete;
 
         virtual void try_connect() override {  // Connect to server
+            std::cout << "Trying to connect to server...\n";
+
             task_connect_to_server();
         }
     private:
@@ -245,7 +267,7 @@ namespace rain_net {
             owned_message.msg = this->current_incoming_message;
             owned_message.remote = nullptr;  // This distinction is important
 
-            this->incoming_messages->push_back(owned_message);
+            this->incoming_messages->push_back(std::move(owned_message));
 
             this->current_incoming_message = {};
         }
@@ -253,19 +275,20 @@ namespace rain_net {
         void task_connect_to_server() {
             asio::async_connect(this->tcp_socket, endpoints,
                 [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
-                    std::cout << "HELLOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO" << std::endl;
-
                     if (ec) {
                         std::cout << "Could not connect to server\n";
 
                         // Close the connection on this side; the remote will pick this up
-                        this->tcp_socket.close();
+                        this->tcp_socket.close();  // TODO need?
 
                         return;
                     } else {
                         std::cout << "Successfully connected to " << endpoint << '\n';
 
                         this->task_read_header();
+
+                        // Now messages can be sent
+                        this->established_connection.store(true);
                     }
                 }
             );

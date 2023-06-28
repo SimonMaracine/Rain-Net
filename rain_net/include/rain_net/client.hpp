@@ -47,7 +47,7 @@ namespace rain_net {
             }
 
             connection = std::make_unique<ServerConnection<E>>(
-                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints  // TODO move?
+                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints
             );
 
             connection->try_connect();
@@ -55,8 +55,6 @@ namespace rain_net {
             context_thread = std::thread([this]() {
                 asio_context.run();
             });
-
-            std::cout << "Trying to connect to server on port " << port << "...\n";
 
             return true;
         }

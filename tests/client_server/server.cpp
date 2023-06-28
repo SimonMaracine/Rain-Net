@@ -12,6 +12,8 @@ public:
         : rain_net::Server<MsgType>(port) {}
 
     virtual bool on_client_connected(std::shared_ptr<rain_net::Connection<MsgType>> client_connection) override {
+        std::cout << "Yaay... " << client_connection->get_id() << '\n';
+
         return true;
     }
 
@@ -34,7 +36,7 @@ public:
 };
 
 int main() {
-    ThisServer server {6010};
+    ThisServer server {6001};
     server.start();
 
     while (true) {

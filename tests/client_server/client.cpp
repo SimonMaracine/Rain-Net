@@ -23,26 +23,17 @@ public:
 int main() {
     ThisClient client;
 
-    if (!client.connect("localhost", 6010)) {
+    if (!client.connect("localhost", 6001)) {
         return 1;
     }
 
-    std::cout << "ENTER LOOP\n";
-
     while (true) {
-        if (!client.is_connected()) {
-            std::cout << "DISCONNECTED\n";
+        std::cout << client.is_connected() << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-            break;
-        } else {
-            std::cout << "CONNECTED!!!\n";
+        client.ping_server();
 
-            client.ping_server();
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(60));
-
-        if (!client.incoming_messages.empty()) {
+        while (!client.incoming_messages.empty()) {
             auto message = client.incoming_messages.pop_front().msg;
 
             switch (message.id()) {

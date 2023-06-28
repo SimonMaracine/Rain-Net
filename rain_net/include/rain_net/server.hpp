@@ -22,7 +22,7 @@ namespace rain_net {
     class Server {
     public:
         Server(uint16_t port)
-            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), port(port) {}
+            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), listen_port(port) {}
 
         virtual ~Server() {
             stop();
@@ -41,7 +41,7 @@ namespace rain_net {
                 asio_context.run();
             });
 
-            std::cout << "Server started on port " << port << '\n';  // TODO logging
+            std::cout << "Server started on port " << listen_port << '\n';  // TODO logging
         }
 
         void stop() {
@@ -57,16 +57,14 @@ namespace rain_net {
             while (messages_processed < max_messages && !incoming_messages.empty()) {
                 OwnedMessage<E> message = incoming_messages.pop_front();
 
+                assert(message.remote != nullptr);
+
                 on_message_received(message.remote, message.msg);
 
                 messages_processed++;
             }
         }
     protected:
-        // TODO find a way to name these
-        // using ClientConnection = Connection<E>;
-        // using Message = Message<E>;
-
         // Return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
@@ -76,7 +74,7 @@ namespace rain_net {
         virtual void on_message_received(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
 
         void message_client(std::shared_ptr<Connection<E>> client_connection, const Message<E>& message) {
-            assert(client_connection != nullptr);  // TODO maybe just check
+            assert(client_connection != nullptr);
 
             if (client_connection->is_connected()) {
                 client_connection->send(message);
@@ -96,7 +94,7 @@ namespace rain_net {
             bool disconnected_clients = false;
 
             for (auto& client_connection : active_connections) {
-                assert(client_connection != nullptr);  // TODO maybe just check
+                assert(client_connection != nullptr);
 
                 if (client_connection->is_connected()) {
                     if (client_connection != except) {
@@ -156,9 +154,8 @@ namespace rain_net {
         std::thread context_thread;
 
         asio::ip::tcp::acceptor acceptor;
+        uint16_t listen_port = 0;
 
         uint32_t client_id_counter = 0;  // 0 is invalid
-
-        uint16_t port = 0;
     };
 }
