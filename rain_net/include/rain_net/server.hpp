@@ -21,6 +21,8 @@ namespace rain_net {
     template<typename E>
     class Server {
     public:
+        static constexpr uint32_t MAX = std::numeric_limits<uint32_t>::max();
+
         Server(uint16_t port)
             : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), listen_port(port) {}
 
@@ -51,7 +53,11 @@ namespace rain_net {
             std::cout << "Server stopped\n";  // TODO logging
         }
 
-        void update(const uint32_t max_messages = std::numeric_limits<uint32_t>::max()) {
+        void update(const uint32_t max_messages = MAX, bool wait = false) {
+            if (wait) {
+                incoming_messages.wait();
+            }
+
             uint32_t messages_processed = 0;
 
             while (messages_processed < max_messages && !incoming_messages.empty()) {
@@ -118,7 +124,7 @@ namespace rain_net {
             }
         }
 
-        Queue<OwnedMessage<E>> incoming_messages;
+        WaitingQueue<OwnedMessage<E>> incoming_messages;
         std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO protected? deque?
     private:
         void task_wait_for_connection() {

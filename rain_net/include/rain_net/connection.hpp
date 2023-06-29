@@ -239,7 +239,7 @@ namespace rain_net {
             this->current_incoming_message = {};
         }
 
-        uint32_t client_id = 0;
+        uint32_t client_id = 0;  // 0 is invalid
     };
 
     // Owner of this is the client

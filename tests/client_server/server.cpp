@@ -40,7 +40,7 @@ int main() {
     server.start();
 
     while (true) {
-        server.update();
+        server.update(ThisServer::MAX, true);
     }
 
     server.stop();

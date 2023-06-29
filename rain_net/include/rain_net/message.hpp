@@ -6,6 +6,7 @@
 #include <iostream>
 #include <type_traits>
 #include <memory>
+#include <limits>
 
 namespace rain_net {
     template<typename E>
@@ -14,6 +15,8 @@ namespace rain_net {
     template<typename F>
     class ClientConnection;
 
+    inline constexpr size_t MAX_ITEM_SIZE = std::numeric_limits<uint16_t>::max();
+
     template<typename E>
     struct MsgHeader final {  // TODO hide this
         MsgHeader() {
@@ -21,7 +24,7 @@ namespace rain_net {
         }
 
         E id {};
-        uint32_t payload_size = 0;
+        uint16_t payload_size = 0;
     };
 
     template<typename E>
@@ -41,6 +44,7 @@ namespace rain_net {
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
+            static_assert(sizeof(T) <= MAX_ITEM_SIZE);
 
             const size_t write_position = payload.size();
 
@@ -58,6 +62,7 @@ namespace rain_net {
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
+            static_assert(sizeof(T) <= MAX_ITEM_SIZE);
 
             const size_t read_position = payload.size() - sizeof(T);
 
