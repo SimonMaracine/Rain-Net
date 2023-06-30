@@ -4,11 +4,17 @@
 #include <memory>
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 
-#define ASIO_STANDALONE
-#include <asio.hpp>
-#include <asio/ts/internet.hpp>
-#include <asio/ts/buffer.hpp>
+#define ASIO_NO_DEPRECATED
+#include <asio/buffer.hpp>
+#include <asio/read.hpp>
+#include <asio/write.hpp>
+#include <asio/post.hpp>
+#include <asio/connect.hpp>
+#include <asio/error_code.hpp>
+#include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
 
 #include "message.hpp"
 #include "queue.hpp"
@@ -51,6 +57,11 @@ namespace rain_net {
     protected:
         virtual void add_to_incoming_messages() = 0;
 
+        void close_connection_on_this_side() {
+            // Close the connection on this side; the remote will pick this up
+            tcp_socket.close();
+        }
+
         void task_read_header() {
             static_assert(std::is_trivially_copyable_v<internal::MsgHeader<E>>);
 
@@ -59,8 +70,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not read header (" << get_id() <<  ")\n";
 
-                        // Close the connection on this side; the remote will pick this up
-                        tcp_socket.close();
+                        close_connection_on_this_side();
                     } else {
                         assert(size == sizeof(internal::MsgHeader<E>));
 
@@ -87,8 +97,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not read payload (" << get_id() << ")\n";
 
-                        // Close the connection on this side; the remote will pick this up
-                        tcp_socket.close();
+                        close_connection_on_this_side();
                     } else {
                         assert(size == current_incoming_message.header.payload_size);
 
@@ -108,8 +117,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not write header (" << get_id() << ")\n";
 
-                        // Close the connection on this side; the remote will pick this up
-                        tcp_socket.close();
+                        close_connection_on_this_side();
                     } else {
                         assert(size == sizeof(internal::MsgHeader<E>));
 
@@ -138,8 +146,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not write payload (" << get_id() << ")\n";
 
-                        // Close the connection on this side; the remote will pick this up
-                        tcp_socket.close();
+                        close_connection_on_this_side();
                     } else {
                         assert(size == outgoing_messages.front().header.payload_size);
 
@@ -279,8 +286,7 @@ namespace rain_net {
                         if (ec) {
                             std::cout << "Could not connect to server\n";
 
-                            // Close the connection on this side; the remote will pick this up
-                            this->tcp_socket.close();  // TODO need?
+                            this->close_connection_on_this_side();  // TODO need?
 
                             return;
                         } else {

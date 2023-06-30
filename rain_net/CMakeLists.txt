@@ -9,8 +9,6 @@ add_library(rain_net INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/include/rain_net/version.hpp"
 )
 
-message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/asio-1.28.0/include/")
-
 target_include_directories(rain_net INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/include/"
     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/asio-1.28.0/include/"
