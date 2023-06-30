@@ -27,7 +27,7 @@ public:
                 std::cout << "Ping request from " << client_connection->get_id() << '\n';
 
                 // Just send the same message back
-                message_client(client_connection, message);
+                send_message(client_connection, message);
 
                 break;
             }

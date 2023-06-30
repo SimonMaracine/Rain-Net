@@ -9,29 +9,28 @@
 #include <limits>
 
 namespace rain_net {
+    namespace internal {
+        inline constexpr size_t MAX_ITEM_SIZE = std::numeric_limits<uint16_t>::max();
+
+        template<typename E>
+        struct MsgHeader final {
+            MsgHeader() {
+                static_assert(std::is_enum_v<E>, "Type must be an enumeration");
+            }
+
+            E id {};
+            uint16_t payload_size = 0;  // TODO memory layout
+        };
+    }
+
     template<typename E>
     class Connection;
-
-    template<typename F>
-    class ClientConnection;
-
-    inline constexpr size_t MAX_ITEM_SIZE = std::numeric_limits<uint16_t>::max();
-
-    template<typename E>
-    struct MsgHeader final {  // TODO hide this
-        MsgHeader() {
-            static_assert(std::is_enum_v<E>, "Type must be an enumeration");
-        }
-
-        E id {};
-        uint16_t payload_size = 0;
-    };
 
     template<typename E>
     class Message final {
     public:
         size_t size() const {
-            return sizeof(MsgHeader<E>) + header.payload_size;
+            return sizeof(internal::MsgHeader<E>) + header.payload_size;
         }
 
         E id() const {
@@ -44,7 +43,7 @@ namespace rain_net {
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
-            static_assert(sizeof(T) <= MAX_ITEM_SIZE);
+            static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
             const size_t write_position = payload.size();
 
@@ -62,7 +61,7 @@ namespace rain_net {
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
-            static_assert(sizeof(T) <= MAX_ITEM_SIZE);
+            static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
             const size_t read_position = payload.size() - sizeof(T);
 
@@ -74,24 +73,27 @@ namespace rain_net {
             return *this;
         }
     private:
-        MsgHeader<E> header;
+        internal::MsgHeader<E> header;
         std::vector<uint8_t> payload;
 
         template<typename F>
         friend std::ostream& operator<<(std::ostream& stream, const Message<F>& message);
 
         template<typename F>
-        friend Message<F> new_message(F id, size_t size_reserved);
+        friend Message<F> message(F id, size_t size_reserved);
 
         template<typename F>
         friend class Connection;
     };
 
     template<typename E>
-    struct OwnedMessage final {
+    Message<E> message(E id, size_t size_reserved) {
         Message<E> msg;
-        std::shared_ptr<Connection<E>> remote;
-    };
+        msg.header.id = id;
+        msg.payload.reserve(size_reserved);
+
+        return msg;
+    }
 
     template<typename E>
     std::ostream& operator<<(std::ostream& stream, const Message<E>& message) {
@@ -105,19 +107,11 @@ namespace rain_net {
         return stream;
     }
 
-    template<typename E>
-    std::ostream& operator<<(std::ostream& stream, const OwnedMessage<E>& message) {
-        stream << message;
-
-        return stream;
-    }
-
-    template<typename E>
-    Message<E> new_message(E id, size_t size_reserved) {
-        Message<E> message;
-        message.header.id = id;
-        message.payload.reserve(size_reserved);
-
-        return message;
+    namespace internal {
+        template<typename E>
+        struct OwnedMsg final {
+            Message<E> message;
+            std::shared_ptr<Connection<E>> remote;
+        };
     }
 }

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <iostream>  // TODO logging
+#include <optional>
 
 #define ASIO_STANDALONE
 #include <asio.hpp>
@@ -46,7 +47,7 @@ namespace rain_net {
                 return false;
             }
 
-            connection = std::make_unique<ServerConnection<E>>(
+            connection = std::make_unique<internal::ServerConnection<E>>(
                 &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints
             );
 
@@ -78,7 +79,7 @@ namespace rain_net {
             return connection->is_connected();
         }
 
-        void send(const Message<E>& message) {
+        void send_message(const Message<E>& message) {
             if (connection == nullptr) {
                 return;
             }
@@ -92,7 +93,15 @@ namespace rain_net {
             std::cout << "Sent message " << message << '\n';
         }
 
-        Queue<OwnedMessage<E>> incoming_messages;
+        std::optional<Message<E>> next_incoming_message() {
+            if (incoming_messages.empty()) {
+                return std::nullopt;
+            }
+
+            return std::make_optional(incoming_messages.pop_front().message);
+        }
+
+        internal::Queue<internal::OwnedMsg<E>> incoming_messages;
         std::unique_ptr<Connection<E>> connection;
     private:
         asio::io_context asio_context;

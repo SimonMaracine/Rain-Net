@@ -17,7 +17,7 @@ namespace rain_net {
     template<typename E>
     class Connection {
     public:
-        Connection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
+        Connection(asio::io_context* asio_context, internal::Queue<internal::OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
             : asio_context(asio_context), incoming_messages(incoming_messages), tcp_socket(std::move(tcp_socket)) {}
 
         virtual ~Connection() = default;  // FIXME hmm
@@ -52,9 +52,9 @@ namespace rain_net {
         virtual void add_to_incoming_messages() = 0;
 
         void task_read_header() {
-            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);
+            static_assert(std::is_trivially_copyable_v<internal::MsgHeader<E>>);
 
-            asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(MsgHeader<E>)),
+            asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
                         std::cout << "Could not read header (" << get_id() <<  ")\n";
@@ -62,7 +62,7 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
-                        assert(size == sizeof(MsgHeader<E>));
+                        assert(size == sizeof(internal::MsgHeader<E>));
 
                         // Check if there is a payload to read
                         if (current_incoming_message.header.payload_size > 0) {
@@ -100,10 +100,10 @@ namespace rain_net {
         }
 
         void task_write_header() {
-            static_assert(std::is_trivially_copyable_v<MsgHeader<E>>);
+            static_assert(std::is_trivially_copyable_v<internal::MsgHeader<E>>);
             assert(!outgoing_messages.empty());
 
-            asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(MsgHeader<E>)),
+            asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
                         std::cout << "Could not write header (" << get_id() << ")\n";
@@ -111,7 +111,7 @@ namespace rain_net {
                         // Close the connection on this side; the remote will pick this up
                         tcp_socket.close();
                     } else {
-                        assert(size == sizeof(MsgHeader<E>));
+                        assert(size == sizeof(internal::MsgHeader<E>));
 
                         // Check if there is a payload to write
                         if (outgoing_messages.front().header.payload_size > 0) {
@@ -191,10 +191,10 @@ namespace rain_net {
         }
 
         asio::io_context* asio_context = nullptr;
-        Queue<OwnedMessage<E>>* incoming_messages = nullptr;
+        internal::Queue<internal::OwnedMsg<E>>* incoming_messages = nullptr;
 
         asio::ip::tcp::socket tcp_socket;
-        Queue<Message<E>> outgoing_messages;
+        internal::Queue<Message<E>> outgoing_messages;
 
         Message<E> current_incoming_message;
 
@@ -202,98 +202,100 @@ namespace rain_net {
         std::atomic<bool> established_connection = false;
     };
 
-    // Owner of this is the server
-    template<typename E>
-    class ClientConnection final : public Connection<E>, public std::enable_shared_from_this<ClientConnection<E>> {
-    public:
-        ClientConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
-            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
-            // The connection has established before
-            this->established_connection.store(true);
-        }
+    namespace internal {
+        // Owner of this is the server
+        template<typename E>
+        class ClientConnection final : public Connection<E>, public std::enable_shared_from_this<ClientConnection<E>> {
+        public:
+            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
+                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
+                // The connection has established before
+                this->established_connection.store(true);
+            }
 
-        virtual ~ClientConnection() = default;
+            virtual ~ClientConnection() = default;
 
-        ClientConnection(const ClientConnection&) = delete;
-        ClientConnection& operator=(const ClientConnection&) = delete;
-        ClientConnection(ClientConnection&&) = delete;
-        ClientConnection& operator=(ClientConnection&&) = delete;
+            ClientConnection(const ClientConnection&) = delete;
+            ClientConnection& operator=(const ClientConnection&) = delete;
+            ClientConnection(ClientConnection&&) = delete;
+            ClientConnection& operator=(ClientConnection&&) = delete;
 
-        virtual void try_connect() override {  // Connect to client
-            std::cout << "Connecting to client...\n";
+            virtual void try_connect() override {  // Connect to client
+                std::cout << "Connecting to client...\n";
 
-            this->task_read_header();
-        }
+                this->task_read_header();
+            }
 
-        virtual uint32_t get_id() const override {
-            return client_id;
-        }
-    private:
-        virtual void add_to_incoming_messages() override {
-            OwnedMessage<E> owned_message;
-            owned_message.msg = this->current_incoming_message;
-            owned_message.remote = this->shared_from_this();  // This distinction is important
+            virtual uint32_t get_id() const override {
+                return client_id;
+            }
+        private:
+            virtual void add_to_incoming_messages() override {
+                OwnedMsg<E> owned_message;
+                owned_message.message = this->current_incoming_message;
+                owned_message.remote = this->shared_from_this();  // This distinction is important
 
-            this->incoming_messages->push_back(std::move(owned_message));
+                this->incoming_messages->push_back(std::move(owned_message));
 
-            this->current_incoming_message = {};
-        }
+                this->current_incoming_message = {};
+            }
 
-        uint32_t client_id = 0;  // 0 is invalid
-    };
+            uint32_t client_id = 0;  // 0 is invalid
+        };
 
-    // Owner of this is the client
-    template<typename E>
-    class ServerConnection final : public Connection<E> {
-    public:
-        ServerConnection(asio::io_context* asio_context, Queue<OwnedMessage<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, const asio::ip::tcp::resolver::results_type& endpoints)
-            : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints) {}
+        // Owner of this is the client
+        template<typename E>
+        class ServerConnection final : public Connection<E> {
+        public:
+            ServerConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, const asio::ip::tcp::resolver::results_type& endpoints)
+                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints) {}
 
-        virtual ~ServerConnection() = default;
+            virtual ~ServerConnection() = default;
 
-        ServerConnection(const ServerConnection&) = delete;
-        ServerConnection& operator=(const ServerConnection&) = delete;
-        ServerConnection(ServerConnection&&) = delete;
-        ServerConnection& operator=(ServerConnection&&) = delete;
+            ServerConnection(const ServerConnection&) = delete;
+            ServerConnection& operator=(const ServerConnection&) = delete;
+            ServerConnection(ServerConnection&&) = delete;
+            ServerConnection& operator=(ServerConnection&&) = delete;
 
-        virtual void try_connect() override {  // Connect to server
-            std::cout << "Trying to connect to server...\n";
+            virtual void try_connect() override {  // Connect to server
+                std::cout << "Trying to connect to server...\n";
 
-            task_connect_to_server();
-        }
-    private:
-        virtual void add_to_incoming_messages() override {
-            OwnedMessage<E> owned_message;
-            owned_message.msg = this->current_incoming_message;
-            owned_message.remote = nullptr;  // This distinction is important
+                task_connect_to_server();
+            }
+        private:
+            virtual void add_to_incoming_messages() override {
+                OwnedMsg<E> owned_message;
+                owned_message.message = this->current_incoming_message;
+                owned_message.remote = nullptr;  // This distinction is important
 
-            this->incoming_messages->push_back(std::move(owned_message));
+                this->incoming_messages->push_back(std::move(owned_message));
 
-            this->current_incoming_message = {};
-        }
+                this->current_incoming_message = {};
+            }
 
-        void task_connect_to_server() {
-            asio::async_connect(this->tcp_socket, endpoints,
-                [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
-                    if (ec) {
-                        std::cout << "Could not connect to server\n";
+            void task_connect_to_server() {
+                asio::async_connect(this->tcp_socket, endpoints,
+                    [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
+                        if (ec) {
+                            std::cout << "Could not connect to server\n";
 
-                        // Close the connection on this side; the remote will pick this up
-                        this->tcp_socket.close();  // TODO need?
+                            // Close the connection on this side; the remote will pick this up
+                            this->tcp_socket.close();  // TODO need?
 
-                        return;
-                    } else {
-                        std::cout << "Successfully connected to " << endpoint << '\n';
+                            return;
+                        } else {
+                            std::cout << "Successfully connected to " << endpoint << '\n';
 
-                        this->task_read_header();
+                            this->task_read_header();
 
-                        // Now messages can be sent
-                        this->established_connection.store(true);
+                            // Now messages can be sent
+                            this->established_connection.store(true);
+                        }
                     }
-                }
-            );
-        }
+                );
+            }
 
-        asio::ip::tcp::resolver::results_type endpoints;
-    };
+            asio::ip::tcp::resolver::results_type endpoints;
+        };
+    }
 }

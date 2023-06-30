@@ -24,7 +24,7 @@ namespace rain_net {
         static constexpr uint32_t MAX = std::numeric_limits<uint32_t>::max();
 
         Server(uint16_t port)
-            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), listen_port(port) {}
+            : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
         virtual ~Server() {
             stop();
@@ -61,11 +61,11 @@ namespace rain_net {
             uint32_t messages_processed = 0;
 
             while (messages_processed < max_messages && !incoming_messages.empty()) {
-                OwnedMessage<E> message = incoming_messages.pop_front();
+                internal::OwnedMsg<E> owned_msg = incoming_messages.pop_front();
 
-                assert(message.remote != nullptr);
+                assert(owned_msg.remote != nullptr);
 
-                on_message_received(message.remote, message.msg);
+                on_message_received(owned_msg.remote, owned_msg.message);
 
                 messages_processed++;
             }
@@ -76,16 +76,15 @@ namespace rain_net {
 
         virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) = 0;
 
-        // Message<E> must be mutable
         virtual void on_message_received(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
 
-        void message_client(std::shared_ptr<Connection<E>> client_connection, const Message<E>& message) {
+        void send_message(std::shared_ptr<Connection<E>> client_connection, const Message<E>& message) {
             assert(client_connection != nullptr);
 
             if (client_connection->is_connected()) {
                 client_connection->send(message);
             } else {
-                // Client has surely disconnected for any reason
+                // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
 
                 // Remove this specific client from the list
@@ -96,7 +95,7 @@ namespace rain_net {
             }
         }
 
-        void message_all_clients(const Message<E>& message, std::shared_ptr<Connection<E>> except = nullptr) {
+        void send_message_all(const Message<E>& message, std::shared_ptr<Connection<E>> except = nullptr) {
             bool disconnected_clients = false;
 
             for (auto& client_connection : active_connections) {
@@ -107,7 +106,7 @@ namespace rain_net {
                         client_connection->send(message);
                     }
                 } else {
-                    // Client has surely disconnected for any reason
+                    // Client has disconnected for any reason
                     on_client_disconnected(client_connection);
 
                     client_connection.reset();  // Destroy this client
@@ -124,8 +123,9 @@ namespace rain_net {
             }
         }
 
-        WaitingQueue<OwnedMessage<E>> incoming_messages;
-        std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO protected? deque?
+        internal::WaitingQueue<internal::OwnedMsg<E>> incoming_messages;
+        std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO deque?
+        uint16_t listen_port = 0;
     private:
         void task_wait_for_connection() {
             acceptor.async_accept(
@@ -135,7 +135,7 @@ namespace rain_net {
                     } else {
                         std::cout << "Accepted new connection " << socket.remote_endpoint() << '\n';
 
-                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<ClientConnection<E>>(
+                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<internal::ClientConnection<E>>(
                             &asio_context, &incoming_messages, std::move(socket), ++client_id_counter
                         );
 
@@ -160,7 +160,6 @@ namespace rain_net {
         std::thread context_thread;
 
         asio::ip::tcp::acceptor acceptor;
-        uint16_t listen_port = 0;
 
         uint32_t client_id_counter = 0;  // 0 is invalid
     };

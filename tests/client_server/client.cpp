@@ -10,13 +10,13 @@ enum class MsgType {
 class ThisClient : public rain_net::Client<MsgType> {
 public:
     void ping_server() {
-        auto message = rain_net::new_message(MsgType::PingServer, 8);
+        auto message = rain_net::message(MsgType::PingServer, 8);
 
         auto current_time = std::chrono::system_clock::now();
 
         message << current_time;
 
-        send(message);
+        send_message(message);
     }
 };
 
@@ -33,8 +33,13 @@ int main() {
 
         client.ping_server();
 
-        while (!client.incoming_messages.empty()) {
-            auto message = client.incoming_messages.pop_front().msg;
+        while (true) {
+            auto result = client.next_incoming_message();
+            rain_net::Message<MsgType> message = result.value_or(rain_net::Message<MsgType>());
+
+            if (!result.has_value()) {
+                break;
+            }
 
             switch (message.id()) {
                 case MsgType::PingServer: {
