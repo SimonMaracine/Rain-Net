@@ -7,6 +7,7 @@
 #include <rain_net/server.hpp>
 #include <rain_net/client.hpp>
 #include <rain_net/queue.hpp>
+#include <rain_net/version.hpp>
 
 enum class Foo {
     One,
@@ -35,4 +36,6 @@ int main() {
     auto endpoints = resolver.resolve("localhost", "12345");
 
     [[maybe_unused]] rain_net::Connection<Foo>* conn2 = new rain_net::internal::ServerConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints);
+
+    std::cout << rain_net::VERSION_MINOR << '\n';
 }
