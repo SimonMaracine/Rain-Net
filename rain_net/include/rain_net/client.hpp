@@ -5,7 +5,6 @@
 #include <string_view>
 #include <cstdint>
 #include <string>
-#include <iostream>  // TODO logging
 #include <optional>
 
 #define ASIO_NO_DEPRECATED
@@ -16,12 +15,14 @@
 #include "queue.hpp"
 #include "message.hpp"
 #include "connection.hpp"
+#include "logging.hpp"
 
 namespace rain_net {
     template<typename E>
     class Client {
     public:
-        Client() = default;
+        Client(std::shared_ptr<spdlog::logger> logger)
+            : logger(logger) {}
 
         virtual ~Client() {
             disconnect();
@@ -43,7 +44,7 @@ namespace rain_net {
             auto endpoints = resolver.resolve(host, std::to_string(port), ec);
 
             if (ec) {
-                std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
+                logger->error("Could not resolve host: {}", ec.message());
 
                 return false;
             }
@@ -86,12 +87,10 @@ namespace rain_net {
             }
 
             if (!is_connected()) {
-                std::cout << "Inconnected\n";
                 return;
             }
 
             connection->send(message);
-            std::cout << "Sent message " << message << '\n';
         }
 
         std::optional<Message<E>> next_incoming_message() {
@@ -104,6 +103,8 @@ namespace rain_net {
 
         internal::Queue<internal::OwnedMsg<E>> incoming_messages;
         std::unique_ptr<Connection<E>> connection;
+
+        std::shared_ptr<spdlog::logger> logger;
     private:
         asio::io_context asio_context;
         std::thread context_thread;

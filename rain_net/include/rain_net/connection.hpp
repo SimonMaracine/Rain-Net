@@ -18,13 +18,19 @@
 
 #include "message.hpp"
 #include "queue.hpp"
+#include "logging.hpp"
 
 namespace rain_net {
     template<typename E>
     class Connection {
     public:
-        Connection(asio::io_context* asio_context, internal::Queue<internal::OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
-            : asio_context(asio_context), incoming_messages(incoming_messages), tcp_socket(std::move(tcp_socket)) {}
+        Connection(
+            asio::io_context* asio_context,
+            internal::Queue<internal::OwnedMsg<E>>* incoming_messages,
+            asio::ip::tcp::socket&& tcp_socket,
+            std::shared_ptr<spdlog::logger> logger
+        )
+            : asio_context(asio_context), incoming_messages(incoming_messages), tcp_socket(std::move(tcp_socket)), logger(logger) {}
 
         virtual ~Connection() = default;  // FIXME hmm
 
@@ -68,7 +74,7 @@ namespace rain_net {
             asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
-                        std::cout << "Could not read header (" << get_id() <<  ")\n";
+                        logger->error("Could not read header [{}]", get_id());
 
                         close_connection_on_this_side();
                     } else {
@@ -95,7 +101,7 @@ namespace rain_net {
             asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
-                        std::cout << "Could not read payload (" << get_id() << ")\n";
+                        logger->error("Could not read payload [{}]", get_id());
 
                         close_connection_on_this_side();
                     } else {
@@ -115,7 +121,7 @@ namespace rain_net {
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader<E>)),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
-                        std::cout << "Could not write header (" << get_id() << ")\n";
+                        logger->error("Could not write header [{}]", get_id());
 
                         close_connection_on_this_side();
                     } else {
@@ -144,7 +150,7 @@ namespace rain_net {
             asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
                 [this](asio::error_code ec, size_t size) {
                     if (ec) {
-                        std::cout << "Could not write payload (" << get_id() << ")\n";
+                        logger->error("Could not write payload [{}]", get_id());
 
                         close_connection_on_this_side();
                     } else {
@@ -207,6 +213,8 @@ namespace rain_net {
 
         // Set to true only once at the beginning
         std::atomic<bool> established_connection = false;
+
+        std::shared_ptr<spdlog::logger> logger;
     };
 
     namespace internal {
@@ -214,8 +222,14 @@ namespace rain_net {
         template<typename E>
         class ClientConnection final : public Connection<E>, public std::enable_shared_from_this<ClientConnection<E>> {
         public:
-            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
-                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
+            ClientConnection(
+                asio::io_context* asio_context,
+                Queue<OwnedMsg<E>>* incoming_messages,
+                asio::ip::tcp::socket&& tcp_socket,
+                std::shared_ptr<spdlog::logger> logger,
+                uint32_t client_id
+            )
+                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket), logger), client_id(client_id) {
                 // The connection has established before
                 this->established_connection.store(true);
             }
@@ -228,7 +242,7 @@ namespace rain_net {
             ClientConnection& operator=(ClientConnection&&) = delete;
 
             virtual void try_connect() override {  // Connect to client
-                std::cout << "Connecting to client...\n";
+                this->logger->info("Connecting to client...");
 
                 this->task_read_header();
             }
@@ -254,8 +268,14 @@ namespace rain_net {
         template<typename E>
         class ServerConnection final : public Connection<E> {
         public:
-            ServerConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, const asio::ip::tcp::resolver::results_type& endpoints)
-                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints) {}
+            ServerConnection(
+                asio::io_context* asio_context,
+                Queue<OwnedMsg<E>>* incoming_messages,
+                asio::ip::tcp::socket&& tcp_socket,
+                std::shared_ptr<spdlog::logger> logger,
+                const asio::ip::tcp::resolver::results_type& endpoints
+            )
+                : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket), logger), endpoints(endpoints) {}
 
             virtual ~ServerConnection() = default;
 
@@ -265,7 +285,7 @@ namespace rain_net {
             ServerConnection& operator=(ServerConnection&&) = delete;
 
             virtual void try_connect() override {  // Connect to server
-                std::cout << "Trying to connect to server...\n";
+                this->logger->info("Trying to connect to server...");
 
                 task_connect_to_server();
             }
@@ -284,13 +304,13 @@ namespace rain_net {
                 asio::async_connect(this->tcp_socket, endpoints,
                     [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
                         if (ec) {
-                            std::cout << "Could not connect to server\n";
+                            this->logger->error("Could not connect to server");
 
                             this->close_connection_on_this_side();  // TODO need?
 
                             return;
                         } else {
-                            std::cout << "Successfully connected to " << endpoint << '\n';
+                            this->logger->info("Successfully connected to {}", endpoint);
 
                             this->task_read_header();
 

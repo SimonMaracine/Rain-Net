@@ -17,6 +17,7 @@
 #include "queue.hpp"
 #include "message.hpp"
 #include "connection.hpp"
+#include "logging.hpp"
 
 namespace rain_net {
     template<typename E>
@@ -24,8 +25,8 @@ namespace rain_net {
     public:
         static constexpr uint32_t MAX = std::numeric_limits<uint32_t>::max();
 
-        Server(uint16_t port)
-            : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
+        Server(uint16_t port, std::shared_ptr<spdlog::logger> logger)
+            : listen_port(port), logger(logger), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
         virtual ~Server() {
             stop();
@@ -44,14 +45,14 @@ namespace rain_net {
                 asio_context.run();
             });
 
-            std::cout << "Server started on port " << listen_port << '\n';  // TODO logging
+            logger->info("Server started on port {}", listen_port);
         }
 
         void stop() {
             asio_context.stop();
             context_thread.join();
 
-            std::cout << "Server stopped\n";  // TODO logging
+            logger->info("Server stopped");
         }
 
         void update(const uint32_t max_messages = MAX, bool wait = false) {
@@ -127,14 +128,16 @@ namespace rain_net {
         internal::WaitingQueue<internal::OwnedMsg<E>> incoming_messages;
         std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO deque?
         uint16_t listen_port = 0;
+
+        std::shared_ptr<spdlog::logger> logger;
     private:
         void task_wait_for_connection() {
             acceptor.async_accept(
                 [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                     if (ec) {
-                        std::cout << "Could not accept new connection: " << ec.message() << '\n';  // TODO logging
+                        logger->error("Could not accept a new connection: {}", ec.message());
                     } else {
-                        std::cout << "Accepted new connection " << socket.remote_endpoint() << '\n';
+                        logger->info("Accepted a new connection {}", socket.remote_endpoint());
 
                         std::shared_ptr<Connection<E>> new_connection = std::make_shared<internal::ClientConnection<E>>(
                             &asio_context, &incoming_messages, std::move(socket), ++client_id_counter
@@ -145,10 +148,11 @@ namespace rain_net {
 
                             active_connections.back()->try_connect();
 
-                            std::cout << "Approved connection " << active_connections.back()->get_id() << '\n';  // TODO logging
+                            logger->info("Approved connection {}", active_connections.back()->get_id());
                         } else {
-                            std::cout << "Actively rejected connection\n";
                             client_id_counter--;  // Take back the unused id
+
+                            logger->info("Actively rejected connection");
                         }
                     }
 
