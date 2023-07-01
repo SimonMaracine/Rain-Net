@@ -5,7 +5,6 @@
 #include <string_view>
 #include <cstdint>
 #include <string>
-#include <iostream>  // TODO logging
 #include <optional>
 
 #define ASIO_NO_DEPRECATED
@@ -86,12 +85,10 @@ namespace rain_net {
             }
 
             if (!is_connected()) {
-                std::cout << "Inconnected\n";
                 return;
             }
 
             connection->send(message);
-            std::cout << "Sent message " << message << '\n';
         }
 
         std::optional<Message<E>> next_incoming_message() {

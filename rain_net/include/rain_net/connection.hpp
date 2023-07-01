@@ -66,9 +66,9 @@ namespace rain_net {
             static_assert(std::is_trivially_copyable_v<internal::MsgHeader<E>>);
 
             asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader<E>)),
-                [this](asio::error_code ec, size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
                     if (ec) {
-                        std::cout << "Could not read header (" << get_id() <<  ")\n";
+                        std::cout << "Could not read header [" << get_id() <<  "]\n";  // TODO logging
 
                         close_connection_on_this_side();
                     } else {
@@ -93,9 +93,9 @@ namespace rain_net {
             assert(current_incoming_message.payload.size() == current_incoming_message.header.payload_size);
 
             asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
-                [this](asio::error_code ec, size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
                     if (ec) {
-                        std::cout << "Could not read payload (" << get_id() << ")\n";
+                        std::cout << "Could not read payload [" << get_id() << "]\n";
 
                         close_connection_on_this_side();
                     } else {
@@ -113,9 +113,9 @@ namespace rain_net {
             assert(!outgoing_messages.empty());
 
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader<E>)),
-                [this](asio::error_code ec, size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
                     if (ec) {
-                        std::cout << "Could not write header (" << get_id() << ")\n";
+                        std::cout << "Could not write header [" << get_id() << "]\n";  // TODO logging
 
                         close_connection_on_this_side();
                     } else {
@@ -142,9 +142,9 @@ namespace rain_net {
             assert(outgoing_messages.front().payload.size() == outgoing_messages.front().header.payload_size);
 
             asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
-                [this](asio::error_code ec, size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
                     if (ec) {
-                        std::cout << "Could not write payload (" << get_id() << ")\n";
+                        std::cout << "Could not write payload [" << get_id() << "]\n";
 
                         close_connection_on_this_side();
                     } else {
@@ -228,7 +228,7 @@ namespace rain_net {
             ClientConnection& operator=(ClientConnection&&) = delete;
 
             virtual void try_connect() override {  // Connect to client
-                std::cout << "Connecting to client...\n";
+                std::cout << "Connecting to client...\n";  // TODO logging
 
                 this->task_read_header();
             }
@@ -265,7 +265,7 @@ namespace rain_net {
             ServerConnection& operator=(ServerConnection&&) = delete;
 
             virtual void try_connect() override {  // Connect to server
-                std::cout << "Trying to connect to server...\n";
+                std::cout << "Trying to connect to server...\n";  // TODO logging
 
                 task_connect_to_server();
             }
@@ -284,7 +284,7 @@ namespace rain_net {
                 asio::async_connect(this->tcp_socket, endpoints,
                     [this](asio::error_code ec, asio::ip::tcp::endpoint endpoint) {
                         if (ec) {
-                            std::cout << "Could not connect to server\n";
+                            std::cout << "Could not connect to server\n";  // TODO logging
 
                             this->close_connection_on_this_side();  // TODO need?
 
