@@ -10,6 +10,6 @@ add_library(rain_net INTERFACE
 )
 
 target_include_directories(rain_net INTERFACE
-    "include/"
-    "dependencies/asio-1.28.0/include/"
+    "include"
+    "dependencies/asio-1.28.0/include"
 )
