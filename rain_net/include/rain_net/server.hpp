@@ -22,9 +22,9 @@ namespace rain_net {
     template<typename E>
     class Server {
     public:
-        static constexpr uint32_t MAX = std::numeric_limits<uint32_t>::max();
+        static constexpr std::uint32_t MAX = std::numeric_limits<std::uint32_t>::max();
 
-        Server(uint16_t port)
+        Server(std::uint16_t port)
             : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
         virtual ~Server() {
@@ -54,12 +54,12 @@ namespace rain_net {
             std::cout << "Server stopped\n";
         }
 
-        void update(const uint32_t max_messages = MAX, bool wait = false) {
+        void update(const std::uint32_t max_messages = MAX, bool wait = false) {
             if (wait) {
                 incoming_messages.wait();
             }
 
-            uint32_t messages_processed = 0;
+            std::uint32_t messages_processed = 0;
 
             while (messages_processed < max_messages && !incoming_messages.empty()) {
                 internal::OwnedMsg<E> owned_msg = incoming_messages.pop_front();
@@ -126,7 +126,7 @@ namespace rain_net {
 
         internal::WaitingQueue<internal::OwnedMsg<E>> incoming_messages;
         std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO deque?
-        uint16_t listen_port = 0;
+        std::uint16_t listen_port = 0;
     private:
         void task_wait_for_connection() {
             acceptor.async_accept(
@@ -163,6 +163,6 @@ namespace rain_net {
 
         asio::ip::tcp::acceptor acceptor;
 
-        uint32_t client_id_counter = 0;  // 0 is invalid
+        std::uint32_t client_id_counter = 0;  // 0 is invalid
     };
 }

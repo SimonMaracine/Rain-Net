@@ -2,6 +2,7 @@
 #include <thread>
 #include <vector>
 #include <cassert>
+#include <cstddef>
 
 // Should include asio
 
@@ -9,7 +10,7 @@
 
 // void task_grab_some_data(asio::ip::tcp::socket& socket) {
 //     socket.async_read_some(asio::buffer(buffer.data(), buffer.size()),
-//         [&](asio::error_code ec, size_t size) {
+//         [&](asio::error_code ec, std::size_t size) {
 //             if (ec) {
 //                 std::cout << "[ERROR]: " << ec.message() << '\n';
 //                 return;
@@ -17,7 +18,7 @@
 
 //             std::cout << "\n\nRead " << size << " bytes!\n\n";
 
-//             for (size_t i = 0; i < size; i++) {
+//             for (std::size_t i = 0; i < size; i++) {
 //                 std::cout << buffer[i];
 //             }
 
@@ -75,7 +76,7 @@ int main() {
     // // check_error(ec);
 
     // // // Ask if there are any bytes available to read without blocking
-    // // const size_t bytes = socket.available(ec);
+    // // const std::size_t bytes = socket.available(ec);
 
     // // check_error(ec);
 

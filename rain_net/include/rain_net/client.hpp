@@ -31,7 +31,7 @@ namespace rain_net {
         Client(Client&&) = delete;
         Client& operator=(Client&&) = delete;
 
-        bool connect(std::string_view host, uint16_t port) {
+        bool connect(std::string_view host, std::uint16_t port) {
             if (asio_context.stopped()) {
                 asio_context.restart();
             }

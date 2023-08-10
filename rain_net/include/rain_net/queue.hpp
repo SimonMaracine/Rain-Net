@@ -4,6 +4,7 @@
 #include <mutex>
 #include <utility>
 #include <condition_variable>
+#include <cstddef>
 
 namespace rain_net {
     namespace internal {
@@ -67,7 +68,7 @@ namespace rain_net {
                 return queue.empty();
             }
 
-            size_t size() {
+            std::size_t size() {
                 std::lock_guard<std::mutex> lock {queue_mutex};
                 return queue.size();
             }

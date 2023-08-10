@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <cstddef>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/buffer.hpp>
@@ -35,7 +36,7 @@ namespace rain_net {
 
         virtual void try_connect() = 0;
 
-        virtual uint32_t get_id() const {
+        virtual std::uint32_t get_id() const {
             return 0;  // This means it's a connection to the server
         }
 
@@ -66,7 +67,7 @@ namespace rain_net {
             static_assert(std::is_trivially_copyable_v<internal::MsgHeader<E>>);
 
             asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader<E>)),
-                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                     if (ec) {
                         std::cout << "Could not read header [" << get_id() <<  "]\n";  // TODO logging
 
@@ -93,7 +94,7 @@ namespace rain_net {
             assert(current_incoming_message.payload.size() == current_incoming_message.header.payload_size);
 
             asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
-                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                     if (ec) {
                         std::cout << "Could not read payload [" << get_id() << "]\n";
 
@@ -113,7 +114,7 @@ namespace rain_net {
             assert(!outgoing_messages.empty());
 
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader<E>)),
-                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                     if (ec) {
                         std::cout << "Could not write header [" << get_id() << "]\n";  // TODO logging
 
@@ -142,7 +143,7 @@ namespace rain_net {
             assert(outgoing_messages.front().payload.size() == outgoing_messages.front().header.payload_size);
 
             asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
-                [this](asio::error_code ec, [[maybe_unused]] size_t size) {
+                [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                     if (ec) {
                         std::cout << "Could not write payload [" << get_id() << "]\n";
 
@@ -214,7 +215,7 @@ namespace rain_net {
         template<typename E>
         class ClientConnection final : public Connection<E>, public std::enable_shared_from_this<ClientConnection<E>> {
         public:
-            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, uint32_t client_id)
+            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg<E>>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, std::uint32_t client_id)
                 : Connection<E>(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
                 // The connection has established before
                 this->established_connection.store(true);
@@ -233,7 +234,7 @@ namespace rain_net {
                 this->task_read_header();
             }
 
-            virtual uint32_t get_id() const override {
+            virtual std::uint32_t get_id() const override {
                 return client_id;
             }
         private:
@@ -247,7 +248,7 @@ namespace rain_net {
                 this->current_incoming_message = {};
             }
 
-            uint32_t client_id = 0;  // 0 is invalid
+            std::uint32_t client_id = 0;  // 0 is invalid
         };
 
         // Owner of this is the client

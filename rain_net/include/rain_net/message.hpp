@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <vector>
 #include <cstring>
 #include <iostream>
@@ -10,7 +11,7 @@
 
 namespace rain_net {
     namespace internal {
-        inline constexpr size_t MAX_ITEM_SIZE = std::numeric_limits<uint16_t>::max();
+        inline constexpr std::size_t MAX_ITEM_SIZE = std::numeric_limits<std::uint16_t>::max();
 
         template<typename E>
         struct MsgHeader final {
@@ -19,7 +20,7 @@ namespace rain_net {
             }
 
             E id {};
-            uint16_t payload_size = 0;  // TODO memory layout
+            std::uint16_t payload_size = 0;  // TODO memory layout
         };
     }
 
@@ -29,7 +30,7 @@ namespace rain_net {
     template<typename E>
     class Message final {
     public:
-        size_t size() const {
+        std::size_t size() const {
             return sizeof(internal::MsgHeader<E>) + header.payload_size;
         }
 
@@ -45,7 +46,7 @@ namespace rain_net {
             );
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const size_t write_position = payload.size();
+            const std::size_t write_position = payload.size();
 
             payload.resize(payload.size() + sizeof(T));
             std::memcpy(payload.data() + write_position, &data, sizeof(T));
@@ -63,7 +64,7 @@ namespace rain_net {
             );
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const size_t read_position = payload.size() - sizeof(T);
+            const std::size_t read_position = payload.size() - sizeof(T);
 
             std::memcpy(&data, payload.data() + read_position, sizeof(T));
             payload.resize(read_position);
@@ -74,20 +75,20 @@ namespace rain_net {
         }
     private:
         internal::MsgHeader<E> header;
-        std::vector<uint8_t> payload;
+        std::vector<unsigned char> payload;
 
         template<typename F>
         friend std::ostream& operator<<(std::ostream& stream, const Message<F>& message);
 
         template<typename F>
-        friend Message<F> message(F id, size_t size_reserved);
+        friend Message<F> message(F id, std::size_t size_reserved);
 
         template<typename F>
         friend class Connection;
     };
 
     template<typename E>
-    Message<E> message(E id, size_t size_reserved) {
+    Message<E> message(E id, std::size_t size_reserved) {
         Message<E> msg;
         msg.header.id = id;
         msg.payload.reserve(size_reserved);

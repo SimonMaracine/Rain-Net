@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdint>
 
 #include <rain_net/server.hpp>
 
@@ -8,7 +9,7 @@ enum class MsgType {
 
 class ThisServer : public rain_net::Server<MsgType> {
 public:
-    ThisServer(uint16_t port)
+    ThisServer(std::uint16_t port)
         : rain_net::Server<MsgType>(port) {}
 
     virtual bool on_client_connected(std::shared_ptr<rain_net::Connection<MsgType>> client_connection) override {
