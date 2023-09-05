@@ -69,7 +69,6 @@ namespace rain_net {
             ClientConnection& operator=(ClientConnection&&) = delete;
 
             virtual void try_connect() override;
-
             virtual std::uint32_t get_id() const override;
         private:
             virtual void add_to_incoming_messages() override;

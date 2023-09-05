@@ -26,7 +26,7 @@ namespace rain_net {
 
         bool connect(std::string_view host, std::uint16_t port);
         void disconnect();
-        bool is_connected() const ;
+        bool is_connected() const;
         void send_message(const Message& message);
         std::optional<Message> next_incoming_message();
 

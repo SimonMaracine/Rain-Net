@@ -10,9 +10,9 @@
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 
-#include "queue.hpp"
-#include "message.hpp"
-#include "connection.hpp"
+#include "rain_net/queue.hpp"
+#include "rain_net/message.hpp"
+#include "rain_net/connection.hpp"
 
 namespace rain_net {
     class Server {
@@ -35,13 +35,10 @@ namespace rain_net {
     protected:
         // Return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<Connection> client_connection) = 0;
-
         virtual void on_client_disconnected(std::shared_ptr<Connection> client_connection) = 0;
-
         virtual void on_message_received(std::shared_ptr<Connection> client_connection, Message& message) = 0;
 
         void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
-
         void send_message_all(const Message& message, std::shared_ptr<Connection> except = nullptr);
 
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
