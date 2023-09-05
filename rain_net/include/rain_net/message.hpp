@@ -13,28 +13,21 @@ namespace rain_net {
     namespace internal {
         inline constexpr std::size_t MAX_ITEM_SIZE = std::numeric_limits<std::uint16_t>::max();
 
-        template<typename E>
         struct MsgHeader final {
-            MsgHeader() {
-                static_assert(std::is_enum_v<E>, "Type must be an enumeration");
-            }
-
-            E id {};
+            std::uint16_t id {};
             std::uint16_t payload_size = 0;  // TODO memory layout
         };
     }
 
-    template<typename E>
     class Connection;
 
-    template<typename E>
     class Message final {
     public:
         std::size_t size() const {
-            return sizeof(internal::MsgHeader<E>) + header.payload_size;
+            return sizeof(internal::MsgHeader) + header.payload_size;
         }
 
-        E id() const {
+        std::uint16_t id() const {
             return header.id;
         }
 
@@ -74,45 +67,32 @@ namespace rain_net {
             return *this;
         }
     private:
-        internal::MsgHeader<E> header;
+        internal::MsgHeader header;
         std::vector<unsigned char> payload;
 
-        template<typename F>
-        friend std::ostream& operator<<(std::ostream& stream, const Message<F>& message);
+        friend std::ostream& operator<<(std::ostream& stream, const Message& message);
 
-        template<typename F>
-        friend Message<F> message(F id, std::size_t size_reserved);
+        friend Message message(std::uint16_t id, std::size_t size_reserved);
 
-        template<typename F>
         friend class Connection;
     };
 
-    template<typename E>
-    Message<E> message(E id, std::size_t size_reserved) {
-        Message<E> msg;
-        msg.header.id = id;
-        msg.payload.reserve(size_reserved);
+    Message message(std::uint16_t id, std::size_t size_reserved);
 
-        return msg;
-    }
+    std::ostream& operator<<(std::ostream& stream, const Message& message);
 
     template<typename E>
-    std::ostream& operator<<(std::ostream& stream, const Message<E>& message) {
-        stream
-            << "Message { ID: "
-            << static_cast<std::underlying_type_t<E>>(message.header.id)
-            << ", payload: "
-            << message.header.payload_size
-            << " B }";
+    constexpr std::uint16_t id(E enum_id) {
+        static_assert(std::is_enum_v<E>, "Type must be an enumeration");
+        static_assert(sizeof(E) <= sizeof(std::uint16_t), "Enumeration type must be at most 2 bytes");
 
-        return stream;
+        return static_cast<std::uint16_t>(enum_id);
     }
 
     namespace internal {
-        template<typename E>
         struct OwnedMsg final {
-            Message<E> message;
-            std::shared_ptr<Connection<E>> remote;
+            Message message;
+            std::shared_ptr<Connection> remote;
         };
     }
 }

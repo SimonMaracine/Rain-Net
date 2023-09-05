@@ -4,103 +4,34 @@
 #include <memory>
 #include <string_view>
 #include <cstdint>
-#include <string>
 #include <optional>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
-#include <asio/error_code.hpp>
-#include <asio/ip/tcp.hpp>
 
-#include "queue.hpp"
-#include "message.hpp"
-#include "connection.hpp"
+#include "rain_net/queue.hpp"
+#include "rain_net/message.hpp"
+#include "rain_net/connection.hpp"
 
 namespace rain_net {
-    template<typename E>
     class Client {
     public:
         Client() = default;
-
-        virtual ~Client() {
-            disconnect();
-        }
+        virtual ~Client();
 
         Client(const Client&) = delete;
         Client& operator=(const Client&) = delete;
         Client(Client&&) = delete;
         Client& operator=(Client&&) = delete;
 
-        bool connect(std::string_view host, std::uint16_t port) {
-            if (asio_context.stopped()) {
-                asio_context.restart();
-            }
+        bool connect(std::string_view host, std::uint16_t port);
+        void disconnect();
+        bool is_connected() const ;
+        void send_message(const Message& message);
+        std::optional<Message> next_incoming_message();
 
-            asio::error_code ec;
-
-            asio::ip::tcp::resolver resolver {asio_context};
-            auto endpoints = resolver.resolve(host, std::to_string(port), ec);
-
-            if (ec) {
-                std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
-
-                return false;
-            }
-
-            connection = std::make_unique<internal::ServerConnection<E>>(
-                &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints
-            );
-
-            connection->try_connect();
-
-            context_thread = std::thread([this]() {
-                asio_context.run();
-            });
-
-            return true;
-        }
-
-        void disconnect() {
-            if (connection == nullptr) {
-                return;
-            }
-
-            connection->disconnect();
-            asio_context.stop();
-            context_thread.join();
-            connection.reset();
-        }
-
-        bool is_connected() const {
-            if (connection == nullptr) {
-                return false;
-            }
-
-            return connection->is_connected();
-        }
-
-        void send_message(const Message<E>& message) {
-            if (connection == nullptr) {
-                return;
-            }
-
-            if (!is_connected()) {
-                return;
-            }
-
-            connection->send(message);
-        }
-
-        std::optional<Message<E>> next_incoming_message() {
-            if (incoming_messages.empty()) {
-                return std::nullopt;
-            }
-
-            return std::make_optional(incoming_messages.pop_front().message);
-        }
-
-        internal::Queue<internal::OwnedMsg<E>> incoming_messages;
-        std::unique_ptr<Connection<E>> connection;
+        internal::Queue<internal::OwnedMsg> incoming_messages;
+        std::unique_ptr<Connection> connection;
     private:
         asio::io_context asio_context;
         std::thread context_thread;

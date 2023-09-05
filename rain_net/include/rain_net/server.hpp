@@ -3,15 +3,11 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
-#include <utility>
 #include <deque>
-#include <cassert>
-#include <algorithm>
 #include <limits>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
-#include <asio/error_code.hpp>
 #include <asio/ip/tcp.hpp>
 
 #include "queue.hpp"
@@ -19,7 +15,6 @@
 #include "connection.hpp"
 
 namespace rain_net {
-    template<typename E>
     class Server {
     public:
         static constexpr std::uint32_t MAX = std::numeric_limits<std::uint32_t>::max();
@@ -27,136 +22,33 @@ namespace rain_net {
         Server(std::uint16_t port)
             : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
-        virtual ~Server() {
-            stop();
-        }
+        virtual ~Server();
 
         Server(const Server&) = delete;
         Server& operator=(const Server&) = delete;
         Server(Server&&) = delete;
         Server& operator=(Server&&) = delete;
 
-        void start() {
-            // Handle some work to the context before it closes automatically
-            task_wait_for_connection();  // TODO error check
-
-            context_thread = std::thread([this]() {
-                asio_context.run();
-            });
-
-            std::cout << "Server started on port " << listen_port << '\n';  // TODO logging
-        }
-
-        void stop() {
-            asio_context.stop();
-            context_thread.join();
-
-            std::cout << "Server stopped\n";
-        }
-
-        void update(const std::uint32_t max_messages = MAX, bool wait = false) {
-            if (wait) {
-                incoming_messages.wait();
-            }
-
-            std::uint32_t messages_processed = 0;
-
-            while (messages_processed < max_messages && !incoming_messages.empty()) {
-                internal::OwnedMsg<E> owned_msg = incoming_messages.pop_front();
-
-                assert(owned_msg.remote != nullptr);
-
-                on_message_received(owned_msg.remote, owned_msg.message);
-
-                messages_processed++;
-            }
-        }
+        void start();
+        void stop();
+        void update(const std::uint32_t max_messages = MAX, bool wait = false);
     protected:
         // Return false to reject the client, true otherwise
-        virtual bool on_client_connected(std::shared_ptr<Connection<E>> client_connection) = 0;
+        virtual bool on_client_connected(std::shared_ptr<Connection> client_connection) = 0;
 
-        virtual void on_client_disconnected(std::shared_ptr<Connection<E>> client_connection) = 0;
+        virtual void on_client_disconnected(std::shared_ptr<Connection> client_connection) = 0;
 
-        virtual void on_message_received(std::shared_ptr<Connection<E>> client_connection, Message<E>& message) = 0;
+        virtual void on_message_received(std::shared_ptr<Connection> client_connection, Message& message) = 0;
 
-        void send_message(std::shared_ptr<Connection<E>> client_connection, const Message<E>& message) {
-            assert(client_connection != nullptr);
+        void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
 
-            if (client_connection->is_connected()) {
-                client_connection->send(message);
-            } else {
-                // Client has disconnected for any reason
-                on_client_disconnected(client_connection);
+        void send_message_all(const Message& message, std::shared_ptr<Connection> except = nullptr);
 
-                // Remove this specific client from the list
-                active_connections.erase(
-                    std::remove(active_connections.begin(), active_connections.end(), client_connection),
-                    active_connections.end()
-                );
-            }
-        }
-
-        void send_message_all(const Message<E>& message, std::shared_ptr<Connection<E>> except = nullptr) {
-            bool disconnected_clients = false;
-
-            for (auto& client_connection : active_connections) {
-                assert(client_connection != nullptr);
-
-                if (client_connection->is_connected()) {
-                    if (client_connection != except) {
-                        client_connection->send(message);
-                    }
-                } else {
-                    // Client has disconnected for any reason
-                    on_client_disconnected(client_connection);
-
-                    client_connection.reset();  // Destroy this client
-                    disconnected_clients = true;
-                }
-            }
-
-            if (disconnected_clients) {
-                // Remove all clients previously destroyed
-                active_connections.erase(
-                    std::remove(active_connections.cbegin(), active_connections.cend(), nullptr),
-                    active_connections.cend()
-                );
-            }
-        }
-
-        internal::WaitingQueue<internal::OwnedMsg<E>> incoming_messages;
-        std::deque<std::shared_ptr<Connection<E>>> active_connections;  // TODO deque?
+        internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
+        std::deque<std::shared_ptr<Connection>> active_connections;  // TODO deque?
         std::uint16_t listen_port = 0;
     private:
-        void task_wait_for_connection() {
-            acceptor.async_accept(
-                [this](asio::error_code ec, asio::ip::tcp::socket socket) {
-                    if (ec) {
-                        std::cout << "Could not accept a new connection: " << ec.message() << '\n';  // TODO logging
-                    } else {
-                        std::cout << "Accepted a new connection " << socket.remote_endpoint() << '\n';
-
-                        std::shared_ptr<Connection<E>> new_connection = std::make_shared<internal::ClientConnection<E>>(
-                            &asio_context, &incoming_messages, std::move(socket), ++client_id_counter
-                        );
-
-                        if (on_client_connected(new_connection)) {
-                            active_connections.push_back(std::move(new_connection));
-
-                            active_connections.back()->try_connect();
-
-                            std::cout << "Approved connection " << active_connections.back()->get_id() << '\n';  // TODO logging
-                        } else {
-                            client_id_counter--;  // Take back the unused id
-
-                            std::cout << "Actively rejected connection\n";
-                        }
-                    }
-
-                    task_wait_for_connection();
-                }
-            );
-        }
+        void task_wait_for_connection();
 
         asio::io_context asio_context;
         std::thread context_thread;

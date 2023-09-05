@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <cstdint>
 
 #include <rain_net/message.hpp>
 #include <rain_net/connection.hpp>
@@ -9,13 +10,13 @@
 #include <rain_net/queue.hpp>
 #include <rain_net/version.hpp>
 
-enum class Foo {
+enum class Foo : std::uint16_t {
     One,
     Two
 };
 
 int main() {
-    rain_net::Message<Foo> message = rain_net::message(Foo::Two, 20);
+    rain_net::Message message = rain_net::message(rain_net::id(Foo::Two), 20);
 
     message << 1 << 2 << 3;
 
@@ -28,14 +29,14 @@ int main() {
     std::cout << message << '\n';
 
     asio::io_context ctx;
-    rain_net::internal::Queue<rain_net::internal::OwnedMsg<Foo>> q;
+    rain_net::internal::Queue<rain_net::internal::OwnedMsg> q;
 
-    [[maybe_unused]] rain_net::Connection<Foo>* conn = new rain_net::internal::ClientConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), 0);
+    [[maybe_unused]] rain_net::Connection* conn = new rain_net::internal::ClientConnection(&ctx, &q, asio::ip::tcp::socket(ctx), 0);
 
     asio::ip::tcp::resolver resolver {ctx};
     auto endpoints = resolver.resolve("localhost", "12345");
 
-    [[maybe_unused]] rain_net::Connection<Foo>* conn2 = new rain_net::internal::ServerConnection<Foo>(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints);
+    [[maybe_unused]] rain_net::Connection* conn2 = new rain_net::internal::ServerConnection(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints);
 
     std::cout << rain_net::VERSION_MINOR << '\n';
 }
