@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <vector>
 #include <cstring>
-#include <iostream>
+#include <ostream>
 #include <type_traits>
 #include <memory>
 #include <limits>

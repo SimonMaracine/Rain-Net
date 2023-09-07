@@ -41,7 +41,7 @@ int main() {
     server.start();
 
     while (true) {
-        server.update(ThisServer::MAX, true);
+        server.update(ThisServer::MAX_MSG, true);
     }
 
     server.stop();

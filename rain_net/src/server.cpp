@@ -1,11 +1,12 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
-#include <utility>
 #include <deque>
+#include <limits>
+#include <utility>
 #include <cassert>
 #include <algorithm>
-#include <limits>
+#include <iostream>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
@@ -75,16 +76,18 @@ namespace rain_net {
         }
     }
 
-    void Server::send_message_all(const Message& message, std::shared_ptr<Connection> except) {
+    void Server::send_message_all(const Message& message, std::shared_ptr<Connection> exception) {
         bool disconnected_clients = false;
 
         for (auto& client_connection : active_connections) {
             assert(client_connection != nullptr);
 
+            if (client_connection == exception) {
+                continue;
+            }
+
             if (client_connection->is_connected()) {
-                if (client_connection != except) {
-                    client_connection->send(message);
-                }
+                client_connection->send(message);
             } else {
                 // Client has disconnected for any reason
                 on_client_disconnected(client_connection);

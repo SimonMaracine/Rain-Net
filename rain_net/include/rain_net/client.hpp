@@ -11,6 +11,8 @@
 
 #include "rain_net/queue.hpp"
 #include "rain_net/message.hpp"
+
+// Include this also for the user
 #include "rain_net/connection.hpp"
 
 namespace rain_net {

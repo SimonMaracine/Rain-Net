@@ -93,25 +93,25 @@ namespace rain_net {
             WaitingQueue(WaitingQueue&&) = delete;
             WaitingQueue& operator=(WaitingQueue&&) = delete;
 
-            virtual void push_back(const T& item) {
+            virtual void push_back(const T& item) override {
                 Queue<T>::push_back(item);
 
                 cv.notify_one();
             }
 
-            virtual void push_back(T&& item) {
+            virtual void push_back(T&& item) override {
                 Queue<T>::push_back(std::move(item));
 
                 cv.notify_one();
             }
 
-            virtual void push_front(const T& item) {
+            virtual void push_front(const T& item) override {
                 Queue<T>::push_front(item);
 
                 cv.notify_one();
             }
 
-            virtual void push_front(T&& item) {
+            virtual void push_front(T&& item) override {
                 Queue<T>::push_front(std::move(item));
 
                 cv.notify_one();

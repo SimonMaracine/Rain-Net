@@ -12,12 +12,14 @@
 
 #include "rain_net/queue.hpp"
 #include "rain_net/message.hpp"
+
+// Include this also for the user
 #include "rain_net/connection.hpp"
 
 namespace rain_net {
     class Server {
     public:
-        static constexpr std::uint32_t MAX = std::numeric_limits<std::uint32_t>::max();
+        static constexpr std::uint32_t MAX_MSG = std::numeric_limits<std::uint32_t>::max();
 
         Server(std::uint16_t port)
             : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
@@ -31,7 +33,7 @@ namespace rain_net {
 
         void start();
         void stop();
-        void update(const std::uint32_t max_messages = MAX, bool wait = false);
+        void update(const std::uint32_t max_messages = MAX_MSG, bool wait = false);
     protected:
         // Return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<Connection> client_connection) = 0;
@@ -39,7 +41,7 @@ namespace rain_net {
         virtual void on_message_received(std::shared_ptr<Connection> client_connection, Message& message) = 0;
 
         void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
-        void send_message_all(const Message& message, std::shared_ptr<Connection> except = nullptr);
+        void send_message_all(const Message& message, std::shared_ptr<Connection> exception = nullptr);
 
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
         std::deque<std::shared_ptr<Connection>> active_connections;  // TODO deque?

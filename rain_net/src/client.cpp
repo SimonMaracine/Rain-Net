@@ -2,8 +2,9 @@
 #include <memory>
 #include <string_view>
 #include <cstdint>
-#include <string>
 #include <optional>
+#include <string>
+#include <iostream>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
@@ -20,7 +21,7 @@ namespace rain_net {
         disconnect();
     }
 
-    bool Client::connect(std::string_view host, uint16_t port) {
+    bool Client::connect(std::string_view host, std::uint16_t port) {
         if (asio_context.stopped()) {
             asio_context.restart();
         }

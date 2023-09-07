@@ -1,9 +1,10 @@
 #include <utility>
 #include <memory>
 #include <atomic>
-#include <cassert>
 #include <cstdint>
+#include <cassert>
 #include <cstddef>
+#include <iostream>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/buffer.hpp>
