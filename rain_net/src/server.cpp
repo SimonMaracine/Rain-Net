@@ -114,6 +114,30 @@ namespace rain_net {
         }
     }
 
+    void Server::check_connections() {
+        bool disconnected_clients = false;
+
+        for (auto& client_connection : active_connections) {
+            assert(client_connection != nullptr);
+
+            if (!client_connection->is_connected()) {
+                // Client has disconnected for any reason
+                on_client_disconnected(client_connection);
+
+                client_connection.reset();  // Destroy this client
+                disconnected_clients = true;
+            }
+        }
+
+        if (disconnected_clients) {
+            // Remove all clients previously destroyed
+            active_connections.erase(
+                std::remove(active_connections.begin(), active_connections.end(), nullptr),
+                active_connections.cend()
+            );
+        }
+    }
+
     void Server::task_wait_for_connection() {
         acceptor.async_accept(
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {

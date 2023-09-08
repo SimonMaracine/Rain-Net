@@ -43,6 +43,9 @@ namespace rain_net {
         void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
         void send_message_all(const Message& message, std::shared_ptr<Connection> exception = nullptr);
 
+        // Routine to check all connections to see if they are valid
+        void check_connections();
+
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
         std::deque<std::shared_ptr<Connection>> active_connections;  // TODO deque?
         std::uint16_t listen_port = 0;
