@@ -5,6 +5,7 @@
 #include <utility>
 #include <condition_variable>
 #include <cstddef>
+#include <chrono>
 
 namespace rain_net {
     namespace internal {
@@ -118,8 +119,10 @@ namespace rain_net {
             }
 
             void wait() {
+                using namespace std::chrono_literals;
+
                 std::unique_lock<std::mutex> lock {mutex};
-                cv.wait(lock, [this]() { return !Queue<T>::empty(); });
+                cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });
             }
         private:
             std::condition_variable cv;

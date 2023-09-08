@@ -36,6 +36,37 @@ public:
     }
 };
 
+#ifdef __linux__
+
+#include <cstdlib>
+#include <signal.h>
+
+static volatile bool running = true;
+
+int main() {
+    struct sigaction sa {};
+
+    sa.sa_handler = [](int) {
+        running = false;
+    };
+
+    if (sigaction(SIGINT, &sa, nullptr) < 0) {
+        std::abort();
+    }
+
+    ThisServer server {6001};
+    server.start();
+
+    while (running) {
+        server.update(ThisServer::MAX_MSG, true);
+        std::cout << "Returned from update\n";
+    }
+
+    server.stop();
+}
+
+#else
+
 int main() {
     ThisServer server {6001};
     server.start();
@@ -44,5 +75,8 @@ int main() {
         server.update(ThisServer::MAX_MSG, true);
     }
 
+    // FIXME no way to stop it gracefully
     server.stop();
 }
+
+#endif

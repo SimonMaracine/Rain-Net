@@ -32,13 +32,21 @@ namespace rain_net {
         });
 
         std::cout << "Server started on port " << listen_port << '\n';  // TODO logging
+
+        stoppable = true;
     }
 
     void Server::stop() {
+        if (!stoppable) {
+            return;
+        }
+
         asio_context.stop();
         context_thread.join();
 
         std::cout << "Server stopped\n";
+
+        stoppable = false;
     }
 
     void Server::update(const std::uint32_t max_messages, bool wait) {

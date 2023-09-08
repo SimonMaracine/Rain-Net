@@ -54,6 +54,8 @@ namespace rain_net {
 
         asio::ip::tcp::acceptor acceptor;
 
-        std::uint32_t client_id_counter = 0;  // 0 is invalid
+        std::uint32_t client_id_counter = 0;  // ID 0 is invalid
+
+        bool stoppable = false;
     };
 }

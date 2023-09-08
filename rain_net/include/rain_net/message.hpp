@@ -14,7 +14,7 @@ namespace rain_net {
         inline constexpr std::size_t MAX_ITEM_SIZE = std::numeric_limits<std::uint16_t>::max();
 
         struct MsgHeader final {
-            std::uint16_t id {};
+            std::uint16_t id = 0;  // ID 0 is invalid
             std::uint16_t payload_size = 0;  // TODO memory layout
         };
     }
