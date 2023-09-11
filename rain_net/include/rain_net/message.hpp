@@ -21,6 +21,8 @@ namespace rain_net {
 
     class Connection;
 
+    // Class representing a message, a blob of data
+    // Messages can only contain trivially copyable types like numbers, C strings and POD structs
     class Message final {
     public:
         std::size_t size() const {
@@ -31,6 +33,7 @@ namespace rain_net {
             return header.id;
         }
 
+        // Write data to message
         template<typename T>
         Message& operator<<(const T& data) {
             static_assert(
@@ -44,11 +47,12 @@ namespace rain_net {
             payload.resize(payload.size() + sizeof(T));
             std::memcpy(payload.data() + write_position, &data, sizeof(T));
 
-            header.payload_size = payload.size();
+            header.payload_size = static_cast<std::uint16_t>(payload.size());
 
             return *this;
         }
 
+        // Write data from message; reading must be done in reverse
         template<typename T>
         Message& operator>>(T& data) {
             static_assert(
@@ -77,10 +81,13 @@ namespace rain_net {
         friend class Connection;
     };
 
+    // Create a new empty message with specified ID and pre-allocated size
     Message message(std::uint16_t id, std::size_t size_reserved);
 
+    // Print message
     std::ostream& operator<<(std::ostream& stream, const Message& message);
 
+    // Convert enum type to ID type
     template<typename E>
     constexpr std::uint16_t id(E enum_id) {
         static_assert(std::is_enum_v<E>, "Type must be an enumeration");

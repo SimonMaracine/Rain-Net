@@ -17,3 +17,5 @@ target_include_directories(rain_net PUBLIC
     "include"
     "dependencies/asio-1.28.0/include"
 )
+
+set_warnings_and_standard(rain_net)

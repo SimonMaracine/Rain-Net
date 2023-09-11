@@ -3,7 +3,10 @@
 It is a bare-bones networking library for use in any type of game that requires communication with a
 server over the reliable and connection-oriented **TCP** protocol.
 
-It is used to build both the client and the server side.
+It is used to build both the client and the server side. Check out the header files for some
+documentation.
+
+It requires `C++ 17`. I tested it on `GCC 13` and `MSVC 19.36`.
 
 If you use CMake in your project, then that's good! It's best to add this repository as a submodule:
 
