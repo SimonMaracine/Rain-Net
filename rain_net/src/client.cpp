@@ -60,7 +60,7 @@ namespace rain_net {
             return;
         }
 
-        connection->disconnect();
+        connection->close();
         asio_context.stop();
         context_thread.join();
         connection.reset();

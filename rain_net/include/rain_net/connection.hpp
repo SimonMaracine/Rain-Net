@@ -14,6 +14,7 @@
 #include "rain_net/queue.hpp"
 
 namespace rain_net {
+    // Base connection class; this one is used by the user
     class Connection {
     public:
         Connection(asio::io_context* asio_context, internal::Queue<internal::OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
@@ -26,11 +27,17 @@ namespace rain_net {
         Connection(Connection&&) = delete;
         Connection& operator=(Connection&&) = delete;
 
+        // Connect to server or client
         virtual void try_connect() = 0;
+
+        // Retrieve the ID of the client; it's always 0 for server
         virtual std::uint32_t get_id() const;
 
-        void disconnect();
+        // Self explanatory
+        void close();
         bool is_open() const;
+
+        // Low level send message routine; you shouldn't really use this
         void send(const Message& message);
     protected:
         virtual void add_to_incoming_messages() = 0;

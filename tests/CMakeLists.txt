@@ -1,15 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 
-function(set_warnings target)
-    if(UNIX)
-        target_compile_options(${target} PRIVATE "-Wall" "-Wextra" "-Wpedantic")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${target} PRIVATE "/W3")
-    else()
-        message(WARNING "Compiler is not MSVC or platform is not supported yet, warnings were not enabled")
-    endif()
-endfunction()
-
 add_subdirectory(asio_example)
 add_subdirectory(rain_net_test)
 add_subdirectory(client_server)

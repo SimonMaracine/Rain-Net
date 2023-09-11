@@ -26,7 +26,7 @@ namespace rain_net {
         return 0;  // This means that it's a connection to the server
     }
 
-    void Connection::disconnect() {
+    void Connection::close() {
         if (!tcp_socket.is_open()) {
             return;
         }
