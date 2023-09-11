@@ -5,6 +5,7 @@
 #include <string_view>
 #include <cstdint>
 #include <optional>
+#include <functional>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
@@ -18,6 +19,8 @@
 namespace rain_net {
     class Client {
     public:
+        using OnConnected = std::function<void()>;
+
         Client() = default;
         virtual ~Client();
 
@@ -26,7 +29,7 @@ namespace rain_net {
         Client(Client&&) = delete;
         Client& operator=(Client&&) = delete;
 
-        bool connect(std::string_view host, std::uint16_t port);
+        bool connect(std::string_view host, std::uint16_t port, const OnConnected& on_connected = []() {});
         void disconnect();
         bool is_connected() const;
         void send_message(const Message& message);

@@ -4,6 +4,7 @@
 #include <memory>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
@@ -29,7 +30,7 @@ namespace rain_net {
         virtual std::uint32_t get_id() const;
 
         void disconnect();
-        bool is_connected() const;
+        bool is_open() const;
         void send(const Message& message);
     protected:
         virtual void add_to_incoming_messages() = 0;
@@ -59,7 +60,8 @@ namespace rain_net {
         // Owner of this is the server
         class ClientConnection final : public Connection, public std::enable_shared_from_this<ClientConnection> {
         public:
-            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, std::uint32_t client_id);
+            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages,
+                asio::ip::tcp::socket&& tcp_socket, std::uint32_t client_id);
 
             virtual ~ClientConnection() noexcept = default;
 
@@ -79,8 +81,9 @@ namespace rain_net {
         // Owner of this is the client
         class ServerConnection final : public Connection {
         public:
-            ServerConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, const asio::ip::tcp::resolver::results_type& endpoints)
-                : Connection(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints) {}
+            ServerConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket,
+                const asio::ip::tcp::resolver::results_type& endpoints, const std::function<void()>& on_connected)
+                : Connection(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints), on_connected(on_connected) {}
 
             virtual ~ServerConnection() noexcept = default;
 
@@ -96,6 +99,7 @@ namespace rain_net {
             void task_connect_to_server();
 
             asio::ip::tcp::resolver::results_type endpoints;
+            std::function<void()> on_connected;
         };
     }
 }

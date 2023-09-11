@@ -3,6 +3,7 @@
 #include <string_view>
 #include <cstdint>
 #include <optional>
+#include <functional>
 #include <string>
 #include <iostream>
 
@@ -21,7 +22,7 @@ namespace rain_net {
         disconnect();
     }
 
-    bool Client::connect(std::string_view host, std::uint16_t port) {
+    bool Client::connect(std::string_view host, std::uint16_t port, const OnConnected& on_connected) {
         if (asio_context.stopped()) {
             asio_context.restart();
         }
@@ -38,7 +39,11 @@ namespace rain_net {
         }
 
         connection = std::make_unique<internal::ServerConnection>(
-            &asio_context, &incoming_messages, asio::ip::tcp::socket(asio_context), endpoints
+            &asio_context,
+            &incoming_messages,
+            asio::ip::tcp::socket(asio_context),
+            endpoints,
+            on_connected
         );
 
         connection->try_connect();
@@ -66,7 +71,7 @@ namespace rain_net {
             return false;
         }
 
-        return connection->is_connected();
+        return connection->is_open();
     }
 
     void Client::send_message(const Message& message) {

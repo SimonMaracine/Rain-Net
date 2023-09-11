@@ -70,7 +70,7 @@ namespace rain_net {
     void Server::send_message(std::shared_ptr<Connection> client_connection, const Message& message) {
         assert(client_connection != nullptr);
 
-        if (client_connection->is_connected()) {
+        if (client_connection->is_open()) {
             client_connection->send(message);
         } else {
             // Client has disconnected for any reason
@@ -94,7 +94,7 @@ namespace rain_net {
                 continue;
             }
 
-            if (client_connection->is_connected()) {
+            if (client_connection->is_open()) {
                 client_connection->send(message);
             } else {
                 // Client has disconnected for any reason
@@ -120,7 +120,7 @@ namespace rain_net {
         for (auto& client_connection : active_connections) {
             assert(client_connection != nullptr);
 
-            if (!client_connection->is_connected()) {
+            if (!client_connection->is_open()) {
                 // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
 
@@ -144,20 +144,23 @@ namespace rain_net {
                 if (ec) {
                     std::cout << "Could not accept a new connection: " << ec.message() << '\n';  // TODO logging
                 } else {
-                    std::cout << "Accepted a new connection " << socket.remote_endpoint() << '\n';
+                    std::cout << "Accepted a new connection: " << socket.remote_endpoint() << '\n';
 
-                    std::shared_ptr<Connection> new_connection = std::make_shared<internal::ClientConnection>(
-                        &asio_context, &incoming_messages, std::move(socket), ++client_id_counter
+                    auto connection = std::make_shared<internal::ClientConnection>(
+                        &asio_context,
+                        &incoming_messages,
+                        std::move(socket),
+                        ++client_id_counter
                     );
 
-                    if (on_client_connected(new_connection)) {
-                        active_connections.push_back(std::move(new_connection));
+                    if (on_client_connected(connection)) {
+                        active_connections.push_back(std::move(connection));
 
                         active_connections.back()->try_connect();
 
                         std::cout << "Approved connection " << active_connections.back()->get_id() << '\n';  // TODO logging
                     } else {
-                        client_id_counter--;  // Take back the unused id
+                        client_id_counter--;  // Take back the unused ID
 
                         std::cout << "Actively rejected connection\n";
                     }

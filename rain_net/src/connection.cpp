@@ -2,6 +2,7 @@
 #include <memory>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <cassert>
 #include <cstddef>
 #include <iostream>
@@ -33,7 +34,7 @@ namespace rain_net {
         task_close_socket();
     }
 
-    bool Connection::is_connected() const {
+    bool Connection::is_open() const {
         return tcp_socket.is_open();
     }
 
@@ -52,7 +53,7 @@ namespace rain_net {
         asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader)),
             [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                 if (ec) {
-                    std::cout << "Could not read header [" << get_id() <<  "]\n";  // TODO logging
+                    std::cout << "Could not read header [" << get_id() << "]\n";  // TODO logging
 
                     close_connection_on_this_side();
                 } else {
@@ -189,7 +190,7 @@ namespace rain_net {
         }
 
         void ClientConnection::try_connect() {  // Connect to client
-            std::cout << "Connecting to client...\n";  // TODO logging
+            std::cout << "Connected to client; starting communication...\n";  // TODO logging
 
             task_read_header();
         }
@@ -240,6 +241,7 @@ namespace rain_net {
 
                         // Now messages can be sent
                         established_connection.store(true);
+                        on_connected();
                     }
                 }
             );
