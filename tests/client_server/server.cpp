@@ -75,7 +75,7 @@ int main() {
         server.update(ThisServer::MAX_MSG, true);
     }
 
-    // FIXME no way to stop it gracefully
+    // FIXME should stop it gracefully
     server.stop();
 }
 

@@ -61,6 +61,7 @@ namespace rain_net {
         std::uint16_t listen_port = 0;
     private:
         void task_wait_for_connection();
+        void remove_clients(std::shared_ptr<Connection> connection);
 
         asio::io_context asio_context;
         std::thread context_thread;

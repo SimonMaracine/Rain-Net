@@ -4,7 +4,7 @@ It is a bare-bones networking library for use in any type of game that requires 
 server over the reliable and connection-oriented **TCP** protocol.
 
 It is used to build both the client and the server side. Check out the header files for some
-documentation.
+documentation and see the `client_server` example in `tests`.
 
 It requires `C++ 17`. I tested it on `GCC 13` and `MSVC 19.36`.
 

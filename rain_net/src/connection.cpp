@@ -189,7 +189,9 @@ namespace rain_net {
             established_connection.store(true);
         }
 
-        void ClientConnection::try_connect() {  // Connect to client
+        void ClientConnection::try_connect() {
+            // Connect to client
+
             std::cout << "Connected to client; starting communication...\n";  // TODO logging
 
             task_read_header();
@@ -209,7 +211,9 @@ namespace rain_net {
             current_incoming_message = {};
         }
 
-        void ServerConnection::try_connect() {  // Connect to server
+        void ServerConnection::try_connect() {
+            // Connect to server
+
             std::cout << "Trying to connect to server...\n";  // TODO logging
 
             task_connect_to_server();
@@ -231,9 +235,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not connect to server\n";  // TODO logging
 
-                        close_connection_on_this_side();  // TODO need?
-
-                        return;
+                        close_connection_on_this_side();
                     } else {
                         std::cout << "Successfully connected to " << endpoint << '\n';
 

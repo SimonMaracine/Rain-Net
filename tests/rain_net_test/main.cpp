@@ -31,12 +31,20 @@ int main() {
     asio::io_context ctx;
     rain_net::internal::Queue<rain_net::internal::OwnedMsg> q;
 
-    [[maybe_unused]] rain_net::Connection* conn = new rain_net::internal::ClientConnection(&ctx, &q, asio::ip::tcp::socket(ctx), 0);
+    [[maybe_unused]] rain_net::Connection* connection = (
+        new rain_net::internal::ClientConnection(&ctx, &q, asio::ip::tcp::socket(ctx), 0)
+    );
+
+    delete connection;
 
     asio::ip::tcp::resolver resolver {ctx};
     auto endpoints = resolver.resolve("localhost", "12345");
 
-    [[maybe_unused]] rain_net::Connection* conn2 = new rain_net::internal::ServerConnection(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints);
+    [[maybe_unused]] rain_net::Connection* connection2 = (
+        new rain_net::internal::ServerConnection(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints, []() {})
+    );
+
+    delete connection2;
 
     std::cout << rain_net::VERSION_MINOR << '\n';
 }

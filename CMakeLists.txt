@@ -10,7 +10,7 @@ function(set_warnings_and_standard target)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${target} PRIVATE "/W3")
     else()
-        message(WARNING "Compiler is not MSVC or platform is not supported yet, warnings were not enabled")
+        message(WARNING "Compiler is not MSVC or platform is not supported yet, warnings are not enabled")
     endif()
 
     target_compile_features(${target} PRIVATE cxx_std_17)

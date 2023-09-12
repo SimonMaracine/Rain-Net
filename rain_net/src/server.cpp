@@ -77,10 +77,7 @@ namespace rain_net {
             on_client_disconnected(client_connection);
 
             // Remove this specific client from the list
-            active_connections.erase(
-                std::remove(active_connections.begin(), active_connections.end(), client_connection),
-                active_connections.cend()
-            );
+            remove_clients(client_connection);
         }
     }
 
@@ -100,17 +97,16 @@ namespace rain_net {
                 // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
 
-                client_connection.reset();  // Destroy this client
+                // Destroy this client
+                client_connection.reset();
+
                 disconnected_clients = true;
             }
         }
 
         if (disconnected_clients) {
-            // Remove all clients previously destroyed
-            active_connections.erase(
-                std::remove(active_connections.begin(), active_connections.end(), nullptr),
-                active_connections.cend()
-            );
+            // Remove all destroyed clients
+            remove_clients(nullptr);
         }
     }
 
@@ -124,17 +120,16 @@ namespace rain_net {
                 // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
 
-                client_connection.reset();  // Destroy this client
+                // Destroy this client
+                client_connection.reset();
+
                 disconnected_clients = true;
             }
         }
 
         if (disconnected_clients) {
-            // Remove all clients previously destroyed
-            active_connections.erase(
-                std::remove(active_connections.begin(), active_connections.end(), nullptr),
-                active_connections.cend()
-            );
+            // Remove all destroyed clients
+            remove_clients(nullptr);
         }
     }
 
@@ -168,6 +163,13 @@ namespace rain_net {
 
                 task_wait_for_connection();
             }
+        );
+    }
+
+    void Server::remove_clients(std::shared_ptr<Connection> connection) {
+        active_connections.erase(
+            std::remove(active_connections.begin(), active_connections.end(), connection),
+            active_connections.cend()
         );
     }
 }
