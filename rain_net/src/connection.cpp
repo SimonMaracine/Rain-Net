@@ -23,7 +23,7 @@
 
 namespace rain_net {
     std::uint32_t Connection::get_id() const {
-        return 0;  // This means that it's a connection to the server
+        return 0;  // ID for a server connection means nothing
     }
 
     void Connection::close() {

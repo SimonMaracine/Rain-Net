@@ -5,6 +5,7 @@
 #include <thread>
 #include <deque>
 #include <limits>
+#include <optional>
 
 #define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
@@ -35,7 +36,7 @@ namespace rain_net {
         Server& operator=(Server&&) = delete;
 
         // Start, stop the server; you should call stop()
-        void start();
+        void start(std::uint32_t max_clients = 65'536);
         void stop();
 
         // Call this in a loop to continuously receive messages
@@ -62,13 +63,23 @@ namespace rain_net {
     private:
         void task_wait_for_connection();
         void remove_clients(std::shared_ptr<Connection> connection);
+        void create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id);
 
         asio::io_context asio_context;
         std::thread context_thread;
 
         asio::ip::tcp::acceptor acceptor;
 
-        std::uint32_t client_id_counter = 0;  // ID 0 is invalid
+        class ClientsPool {
+        public:
+            void create_pool(std::uint32_t size);
+            std::optional<std::uint32_t> allocate_id();
+            void deallocate_id(std::uint32_t id);
+        private:
+            bool* pool = nullptr;  // False means it's not allocated
+            std::uint32_t id_pointer = 0;
+            std::uint32_t size = 0;
+        } clients;
 
         bool stoppable = false;
     };

@@ -82,7 +82,7 @@ namespace rain_net {
         private:
             virtual void add_to_incoming_messages() override;
 
-            std::uint32_t client_id = 0;  // ID 0 is invalid
+            std::uint32_t client_id {};  // This is given by the server
         };
 
         // Owner of this is the client
