@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <iostream>
 
-#define ASIO_NO_DEPRECATED
 #include <asio/buffer.hpp>
 #include <asio/read.hpp>
 #include <asio/write.hpp>

@@ -7,7 +7,6 @@
 #include <optional>
 #include <functional>
 
-#define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
 
 #include "rain_net/queue.hpp"

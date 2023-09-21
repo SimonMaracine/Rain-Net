@@ -19,3 +19,5 @@ target_include_directories(rain_net PUBLIC
 )
 
 set_warnings_and_standard(rain_net)
+
+target_compile_definitions(rain_net PUBLIC "ASIO_NO_DEPRECATED")

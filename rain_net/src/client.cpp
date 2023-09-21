@@ -7,7 +7,6 @@
 #include <string>
 #include <iostream>
 
-#define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
 #include <asio/error_code.hpp>
 #include <asio/ip/tcp.hpp>

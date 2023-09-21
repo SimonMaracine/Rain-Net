@@ -3,11 +3,10 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
-#include <deque>
+#include <list>
 #include <limits>
 #include <optional>
 
-#define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 
@@ -36,6 +35,7 @@ namespace rain_net {
         Server& operator=(Server&&) = delete;
 
         // Start, stop the server; you should call stop()
+        // Here you can specify the maximum amount of connected clients allowed
         void start(std::uint32_t max_clients = 65'536);
         void stop();
 
@@ -58,11 +58,10 @@ namespace rain_net {
 
         // Data accessible to the derived class; don't touch these unless you really know what you're doing
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
-        std::deque<std::shared_ptr<Connection>> active_connections;
+        std::list<std::shared_ptr<Connection>> active_connections;
         std::uint16_t listen_port = 0;
     private:
         void task_wait_for_connection();
-        void remove_clients(std::shared_ptr<Connection> connection);
         void create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id);
 
         asio::io_context asio_context;
@@ -76,6 +75,8 @@ namespace rain_net {
             std::optional<std::uint32_t> allocate_id();
             void deallocate_id(std::uint32_t id);
         private:
+            std::optional<std::uint32_t> search_id(std::uint32_t begin, std::uint32_t end);
+
             bool* pool = nullptr;  // False means it's not allocated
             std::uint32_t id_pointer = 0;
             std::uint32_t size = 0;

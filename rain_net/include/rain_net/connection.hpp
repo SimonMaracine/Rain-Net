@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <functional>
 
-#define ASIO_NO_DEPRECATED
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 
