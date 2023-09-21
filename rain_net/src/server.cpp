@@ -109,7 +109,7 @@ namespace rain_net {
                 clients.deallocate_id(client_connection->get_id());
 
                 // Delete this client
-                active_connections.erase(iter);
+                iter = active_connections.erase(iter);
             }
         }
     }
@@ -128,7 +128,7 @@ namespace rain_net {
                 clients.deallocate_id(client_connection->get_id());
 
                 // Delete this client
-                active_connections.erase(iter);
+                iter = active_connections.erase(iter);
             }
         }
     }
