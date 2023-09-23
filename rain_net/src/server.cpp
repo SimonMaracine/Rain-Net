@@ -109,6 +109,11 @@ namespace rain_net {
 
                 // Delete this client
                 iter = active_connections.erase_after(before_iter);
+
+                // If we erased the last element, this check is essential
+                if (iter == list.end()) {
+                    break;
+                }
             }
         }
     }
@@ -130,6 +135,11 @@ namespace rain_net {
 
                 // Delete this client
                 iter = active_connections.erase_after(before_iter);
+
+                // If we erased the last element, this check is essential
+                if (iter == list.end()) {
+                    break;
+                }
             }
         }
     }
