@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
-#include <list>
+#include <forward_list>
 #include <limits>
 #include <optional>
 #include <utility>
@@ -82,15 +82,14 @@ namespace rain_net {
             clients.deallocate_id(client_connection->get_id());
 
             // Remove this specific client from the list
-            active_connections.erase(
-                std::remove(active_connections.begin(), active_connections.end(), client_connection),
-                active_connections.cend()
-            );
+            active_connections.remove(client_connection);
         }
     }
 
     void Server::send_message_all(const Message& message, std::shared_ptr<Connection> exception) {
-        for (auto iter = active_connections.begin(); iter != active_connections.end(); iter++) {
+        const auto& list = active_connections;
+
+        for (auto before_iter = list.before_begin(), iter = list.begin(); iter != list.end(); before_iter++, iter++) {
             auto& client_connection = *iter;
 
             assert(client_connection != nullptr);
@@ -109,13 +108,15 @@ namespace rain_net {
                 clients.deallocate_id(client_connection->get_id());
 
                 // Delete this client
-                iter = active_connections.erase(iter);
+                iter = active_connections.erase_after(before_iter);
             }
         }
     }
 
     void Server::check_connections() {
-        for (auto iter = active_connections.begin(); iter != active_connections.end(); iter++) {
+        const auto& list = active_connections;
+
+        for (auto before_iter = list.before_begin(), iter = list.begin(); iter != list.end(); before_iter++, iter++) {
             auto& client_connection = *iter;
 
             assert(client_connection != nullptr);
@@ -128,7 +129,7 @@ namespace rain_net {
                 clients.deallocate_id(client_connection->get_id());
 
                 // Delete this client
-                iter = active_connections.erase(iter);
+                iter = active_connections.erase_after(before_iter);
             }
         }
     }
@@ -164,9 +165,9 @@ namespace rain_net {
         );
 
         if (on_client_connected(connection)) {
-            active_connections.push_back(std::move(connection));
+            active_connections.push_front(std::move(connection));
 
-            active_connections.back()->try_connect();
+            active_connections.front()->try_connect();
 
             std::cout << "Approved connection with ID " << id << '\n';  // TODO logging
         } else {

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
-#include <list>
+#include <forward_list>
 #include <limits>
 #include <optional>
 
@@ -58,7 +58,7 @@ namespace rain_net {
 
         // Data accessible to the derived class; don't touch these unless you really know what you're doing
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
-        std::list<std::shared_ptr<Connection>> active_connections;
+        std::forward_list<std::shared_ptr<Connection>> active_connections;
         std::uint16_t listen_port = 0;
     private:
         void task_wait_for_connection();
