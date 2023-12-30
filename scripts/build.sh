@@ -2,4 +2,4 @@
 
 clear
 cd ../build
-cmake --build .
+cmake --build . -j 4

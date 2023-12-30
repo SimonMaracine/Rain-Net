@@ -17,6 +17,28 @@
 #include "rain_net/connection.hpp"
 
 namespace rain_net {
+    class ClientsPool {
+    public:
+        ClientsPool() = default;
+        ~ClientsPool();
+
+        ClientsPool(const ClientsPool&) = delete;
+        ClientsPool& operator=(const ClientsPool&) = delete;
+        ClientsPool(ClientsPool&&) = delete;
+        ClientsPool& operator=(ClientsPool&&) = delete;
+
+        void create_pool(std::uint32_t size);
+        void destroy_pool();
+        std::optional<std::uint32_t> allocate_id();
+        void deallocate_id(std::uint32_t id);
+    private:
+        std::optional<std::uint32_t> search_id(std::uint32_t begin, std::uint32_t end);
+
+        bool* pool = nullptr;  // False means it's not allocated
+        std::uint32_t id_pointer = 0;
+        std::uint32_t size = 0;
+    };
+
     // Base class for the server program
     class Server {
     public:
@@ -69,18 +91,7 @@ namespace rain_net {
 
         asio::ip::tcp::acceptor acceptor;
 
-        class ClientsPool {
-        public:
-            void create_pool(std::uint32_t size);
-            std::optional<std::uint32_t> allocate_id();
-            void deallocate_id(std::uint32_t id);
-        private:
-            std::optional<std::uint32_t> search_id(std::uint32_t begin, std::uint32_t end);
-
-            bool* pool = nullptr;  // False means it's not allocated
-            std::uint32_t id_pointer = 0;
-            std::uint32_t size = 0;
-        } clients;
+        ClientsPool clients;
 
         bool stoppable = false;
     };

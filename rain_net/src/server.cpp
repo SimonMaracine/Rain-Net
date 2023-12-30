@@ -19,6 +19,51 @@
 #include "rain_net/connection.hpp"
 
 namespace rain_net {
+    ClientsPool::~ClientsPool() {
+        destroy_pool();
+    }
+
+    void ClientsPool::create_pool(std::uint32_t size) {
+        pool = new bool[size];
+        this->size = size;
+    }
+
+    void ClientsPool::destroy_pool() {
+        delete[] pool;
+        pool = nullptr;
+    }
+
+    std::optional<std::uint32_t> ClientsPool::allocate_id() {
+        const auto result = search_id(id_pointer, size);
+
+        if (result != std::nullopt) {
+            return result;
+        }
+
+        // No ID found; start searching from the beginning
+
+        return search_id(0, id_pointer);
+
+        // Returns ID or null, if really nothing found
+    }
+
+    void ClientsPool::deallocate_id(std::uint32_t id) {
+        pool[id] = false;
+    }
+
+    std::optional<std::uint32_t> ClientsPool::search_id(std::uint32_t begin, std::uint32_t end) {
+        for (std::uint32_t id = begin; id < end; id++) {
+            if (!pool[id]) {
+                pool[id] = true;
+                id_pointer = (id + 1) % size;
+
+                return std::make_optional(id);
+            }
+        }
+
+        return std::nullopt;
+    }
+
     Server::~Server() {
         stop();
     }
@@ -45,6 +90,7 @@ namespace rain_net {
 
         asio_context.stop();
         context_thread.join();
+        clients.destroy_pool();
 
         std::cout << "Server stopped\n";
 
@@ -185,41 +231,5 @@ namespace rain_net {
 
             std::cout << "Actively rejected connection from server side code\n";
         }
-    }
-
-    void Server::ClientsPool::create_pool(std::uint32_t size) {
-        pool = new bool[size];
-        this->size = size;
-    }
-
-    std::optional<std::uint32_t> Server::ClientsPool::allocate_id() {
-        const auto result = search_id(id_pointer, size);
-
-        if (result != std::nullopt) {
-            return result;
-        }
-
-        // No ID found; start searching from the beginning
-
-        return search_id(0, id_pointer);
-
-        // Returns ID or null, if really nothing found
-    }
-
-    void Server::ClientsPool::deallocate_id(std::uint32_t id) {
-        pool[id] = false;
-    }
-
-    std::optional<std::uint32_t> Server::ClientsPool::search_id(std::uint32_t begin, std::uint32_t end) {
-        for (std::uint32_t id = begin; id < end; id++) {
-            if (!pool[id]) {
-                pool[id] = true;
-                id_pointer = (id + 1) % size;
-
-                return std::make_optional(id);
-            }
-        }
-
-        return std::nullopt;
     }
 }

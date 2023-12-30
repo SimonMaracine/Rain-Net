@@ -39,18 +39,16 @@ public:
 #ifdef __linux__
 
 #include <cstdlib>
-#include <signal.h>
+#include <csignal>
 
 static volatile bool running = true;
 
 int main() {
-    struct sigaction sa {};
-
-    sa.sa_handler = [](int) {
+    auto handler = [](int) {
         running = false;
     };
 
-    if (sigaction(SIGINT, &sa, nullptr) < 0) {
+    if (std::signal(SIGINT, handler) == SIG_ERR) {
         std::abort();
     }
 
