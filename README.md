@@ -29,3 +29,5 @@ set(RAIN_NET_BUILD_TESTS ON)
 
 My intention is to continue working on this project and make it at least usable for small, hobby
 applications.
+
+**Do note that right now it offers zero security.**
