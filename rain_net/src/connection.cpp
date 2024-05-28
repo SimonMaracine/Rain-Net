@@ -38,11 +38,6 @@ namespace rain_net {
             task_try_send_message(message);
         }
 
-        void Connection::close_connection_on_this_side() {
-            // Close the connection on this side; the remote will pick this up
-            tcp_socket.close();
-        }
-
         void Connection::task_read_header() {
             static_assert(std::is_trivially_copyable_v<internal::MsgHeader>);
 
@@ -51,7 +46,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not read header [" << get_id() << "]\n";  // TODO logging
 
-                        close_connection_on_this_side();
+                        tcp_socket.close();
                     } else {
                         assert(size == sizeof(internal::MsgHeader));
 
@@ -78,7 +73,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not read payload [" << get_id() << "]\n";
 
-                        close_connection_on_this_side();
+                        tcp_socket.close();
                     } else {
                         assert(size == current_incoming_message.header.payload_size);
 
@@ -98,7 +93,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not write header [" << get_id() << "]\n";  // TODO logging
 
-                        close_connection_on_this_side();
+                        tcp_socket.close();
                     } else {
                         assert(size == sizeof(internal::MsgHeader));
 
@@ -127,7 +122,7 @@ namespace rain_net {
                     if (ec) {
                         std::cout << "Could not write payload [" << get_id() << "]\n";
 
-                        close_connection_on_this_side();
+                        tcp_socket.close();
                     } else {
                         assert(size == outgoing_messages.front().header.payload_size);
 
@@ -190,8 +185,8 @@ namespace rain_net {
         established_connection.store(true);
     }
 
-    void ClientConnection::try_connect() {  // TODO rename
-        std::cout << "Connected to client; starting communication...\n";  // TODO logging
+    void ClientConnection::start_communication() {
+        std::cout << "Starting communication with client " << client_id << "...\n";  // TODO logging
 
         task_read_header();
     }
@@ -202,24 +197,23 @@ namespace rain_net {
 
     void ClientConnection::add_to_incoming_messages() {
         internal::OwnedMsg<ClientConnection> owned_message;
-        owned_message.message = current_incoming_message;
-        owned_message.remote = shared_from_this();  // This distinction is important
+        owned_message.message = std::move(current_incoming_message);
+        owned_message.remote = shared_from_this();
 
         incoming_messages->push_back(std::move(owned_message));
 
         current_incoming_message = {};
     }
 
-    void ServerConnection::try_connect() {
-        std::cout << "Trying to connect to server...\n";  // TODO logging
+    void ServerConnection::connect() {
+        std::cout << "Connecting to server...\n";  // TODO logging
 
         task_connect_to_server();
     }
 
     void ServerConnection::add_to_incoming_messages() {
         internal::OwnedMsg<ServerConnection> owned_message;
-        owned_message.message = current_incoming_message;
-        owned_message.remote = nullptr;  // This distinction is important
+        owned_message.message = std::move(current_incoming_message);
 
         incoming_messages->push_back(std::move(owned_message));
 
@@ -236,9 +230,9 @@ namespace rain_net {
                 if (ec) {
                     std::cout << "Could not connect to server\n";  // TODO logging
 
-                    close_connection_on_this_side();
+                    tcp_socket.close();
                 } else {
-                    std::cout << "Successfully connected to " << endpoint << '\n';
+                    std::cout << "Successfully connected to server " << endpoint << '\n';
 
                     task_read_header();
 

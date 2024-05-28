@@ -1,7 +1,7 @@
 #include "rain_net/client.hpp"
 
-#include <string>
 #include <iostream>
+#include <string>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -44,7 +44,7 @@ namespace rain_net {
             on_connected
         );
 
-        connection->try_connect();
+        connection->connect();
 
         context_thread = std::thread([this]() {
             asio_context.run();
@@ -72,16 +72,18 @@ namespace rain_net {
         return connection->is_open();
     }
 
-    void Client::send_message(const Message& message) {
+    bool Client::send_message(const Message& message) {
         if (connection == nullptr) {
-            return;
+            return false;
         }
 
         if (!is_connected()) {
-            return;
+            return false;
         }
 
         connection->send(message);
+
+        return true;
     }
 
     std::optional<Message> Client::next_incoming_message() {

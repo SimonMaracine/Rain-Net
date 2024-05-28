@@ -24,28 +24,30 @@
 #include "rain_net/internal/connection.hpp"
 
 namespace rain_net {
-    class ClientsPool final {
-    public:
-        ClientsPool() = default;
-        ClientsPool(std::uint32_t size);
-        ~ClientsPool();
+    namespace internal {
+        class PoolClients final {
+        public:
+            PoolClients() = default;
+            PoolClients(std::uint32_t size);
+            ~PoolClients();
 
-        ClientsPool(const ClientsPool&) = delete;
-        ClientsPool& operator=(const ClientsPool&) = delete;
-        ClientsPool(ClientsPool&& other) noexcept;
-        ClientsPool& operator=(ClientsPool&& other) noexcept;
+            PoolClients(const PoolClients&) = delete;
+            PoolClients& operator=(const PoolClients&) = delete;
+            PoolClients(PoolClients&& other) noexcept;
+            PoolClients& operator=(PoolClients&& other) noexcept;
 
-        std::optional<std::uint32_t> allocate_id();
-        void deallocate_id(std::uint32_t id);
-    private:
-        void create_pool(std::uint32_t size);
-        void destroy_pool();
-        std::optional<std::uint32_t> search_and_allocate_id(std::uint32_t begin, std::uint32_t end);
+            std::optional<std::uint32_t> allocate_id();
+            void deallocate_id(std::uint32_t id);
+        private:
+            void create_pool(std::uint32_t size);
+            void destroy_pool();
+            std::optional<std::uint32_t> search_and_allocate_id(std::uint32_t begin, std::uint32_t end);
 
-        bool* pool {nullptr};  // False means it's not allocated
-        std::uint32_t id_pointer {};
-        std::uint32_t size {};
-    };
+            bool* pool {nullptr};  // False means it's not allocated
+            std::uint32_t id_pointer {};
+            std::uint32_t size {};
+        };
+    }
 
     // Base class for the server program
     class Server {
@@ -71,7 +73,7 @@ namespace rain_net {
 
         // Call this in a loop to continuously receive messages
         // You can specify a maximum amount of processed messages before returning
-        // Set wait to true, to put the CPU to sleep when there is no work to do
+        // Set wait to false, to not put the CPU to sleep when there is no work to do
         void update(const std::uint32_t max_messages = MAX_MSG, bool wait = true);
     protected:
         // Return false to reject the client, true otherwise
@@ -79,8 +81,10 @@ namespace rain_net {
         virtual void on_client_disconnected(std::shared_ptr<ClientConnection> client_connection) = 0;
         virtual void on_message_received(std::shared_ptr<ClientConnection> client_connection, const Message& message) = 0;
 
-        // Send message to a specific client, or to everyone except a specific client
-        void send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
+        // Send message to a specific client; return false, if nothing could be sent, true otherwise
+        bool send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
+
+        // Send a message to everyone except a specific client
         void send_message_all(const Message& message, std::shared_ptr<ClientConnection> exception = nullptr);
 
         // Routine to check all connections to see if they are valid
@@ -96,10 +100,9 @@ namespace rain_net {
 
         asio::io_context asio_context;
         std::thread context_thread;
-
         asio::ip::tcp::acceptor acceptor;
 
-        ClientsPool clients;
+        internal::PoolClients clients;
 
         bool stoppable {false};
     };

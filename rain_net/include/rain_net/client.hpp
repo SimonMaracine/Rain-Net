@@ -42,8 +42,8 @@ namespace rain_net {
         void disconnect();
         bool is_connected() const;
 
-        // Send a message to the server
-        void send_message(const Message& message);
+        // Send a message to the server; return false, if nothing could be sent, true otherwise
+        bool send_message(const Message& message);
 
         // Poll the next message from the server; you usually do it in a loop until std::nullopt
         std::optional<Message> next_incoming_message();

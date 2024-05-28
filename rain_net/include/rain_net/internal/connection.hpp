@@ -32,7 +32,7 @@ namespace rain_net {
             Connection(Connection&&) = delete;
             Connection& operator=(Connection&&) = delete;
 
-            // Self explanatory
+            // Close the connection and check its status
             void close();
             bool is_open() const;
 
@@ -46,7 +46,6 @@ namespace rain_net {
             virtual void add_to_incoming_messages() = 0;
             virtual std::uint32_t get_id() const = 0;
 
-            void close_connection_on_this_side();
             void task_read_header();
             void task_read_payload();
             void task_write_header();
@@ -77,8 +76,7 @@ namespace rain_net {
             std::uint32_t client_id
         );
 
-        void try_connect();
-
+        void start_communication();
         std::uint32_t get_id() const override;
     private:
         void add_to_incoming_messages() override;
@@ -101,7 +99,7 @@ namespace rain_net {
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
             endpoints(endpoints), on_connected(on_connected) {}
 
-        void try_connect();
+        void connect();
     private:
         void add_to_incoming_messages() override;
         std::uint32_t get_id() const override;

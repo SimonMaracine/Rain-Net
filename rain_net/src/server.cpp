@@ -1,9 +1,9 @@
 #include "rain_net/server.hpp"
 
+#include <iostream>
 #include <utility>
 #include <cassert>
 #include <algorithm>
-#include <iostream>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -17,68 +17,70 @@
 #endif
 
 namespace rain_net {
-    ClientsPool::ClientsPool(std::uint32_t size) {
-        create_pool(size);
-    }
-
-    ClientsPool::~ClientsPool() {
-        destroy_pool();
-    }
-
-    ClientsPool::ClientsPool(ClientsPool&& other) noexcept
-        : pool(std::exchange(other.pool, nullptr)), id_pointer(other.id_pointer), size(other.size) {}
-
-    ClientsPool& ClientsPool::operator=(ClientsPool&& other) noexcept {
-        delete[] pool;
-
-        pool = std::exchange(other.pool, nullptr);
-        id_pointer = other.id_pointer;
-        size = other.size;
-
-        return *this;
-    }
-
-    std::optional<std::uint32_t> ClientsPool::allocate_id() {
-        const auto result {search_and_allocate_id(id_pointer, size)};
-
-        if (result != std::nullopt) {
-            return result;
+    namespace internal {
+        PoolClients::PoolClients(std::uint32_t size) {
+            create_pool(size);
         }
 
-        // No ID found; start searching from the beginning
+        PoolClients::~PoolClients() {
+            destroy_pool();
+        }
 
-        return search_and_allocate_id(0, id_pointer);
+        PoolClients::PoolClients(PoolClients&& other) noexcept
+            : pool(std::exchange(other.pool, nullptr)), id_pointer(other.id_pointer), size(other.size) {}
 
-        // Returns ID or null, if really nothing found
-    }
+        PoolClients& PoolClients::operator=(PoolClients&& other) noexcept {
+            delete[] pool;
 
-    void ClientsPool::deallocate_id(std::uint32_t id) {
-        assert(pool[id]);
+            pool = std::exchange(other.pool, nullptr);
+            id_pointer = other.id_pointer;
+            size = other.size;
 
-        pool[id] = false;
-    }
+            return *this;
+        }
 
-    void ClientsPool::create_pool(std::uint32_t size) {
-        pool = new bool[size];
-        this->size = size;
-    }
+        std::optional<std::uint32_t> PoolClients::allocate_id() {
+            const auto result {search_and_allocate_id(id_pointer, size)};
 
-    void ClientsPool::destroy_pool() {
-        delete[] pool;
-        pool = nullptr;
-    }
-
-    std::optional<std::uint32_t> ClientsPool::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) {
-        for (std::uint32_t id {begin}; id < end; id++) {
-            if (!pool[id]) {
-                pool[id] = true;
-                id_pointer = (id + 1) % size;
-
-                return std::make_optional(id);
+            if (result != std::nullopt) {
+                return result;
             }
+
+            // No ID found; start searching from the beginning
+
+            return search_and_allocate_id(0, id_pointer);
+
+            // Returns ID or null, if really nothing found
         }
 
-        return std::nullopt;
+        void PoolClients::deallocate_id(std::uint32_t id) {
+            assert(pool[id]);
+
+            pool[id] = false;
+        }
+
+        void PoolClients::create_pool(std::uint32_t size) {
+            pool = new bool[size];
+            this->size = size;
+        }
+
+        void PoolClients::destroy_pool() {
+            delete[] pool;
+            pool = nullptr;
+        }
+
+        std::optional<std::uint32_t> PoolClients::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) {
+            for (std::uint32_t id {begin}; id < end; id++) {
+                if (!pool[id]) {
+                    pool[id] = true;
+                    id_pointer = (id + 1) % size;
+
+                    return std::make_optional(id);
+                }
+            }
+
+            return std::nullopt;
+        }
     }
 
     Server::~Server() {
@@ -86,7 +88,7 @@ namespace rain_net {
     }
 
     void Server::start(std::uint32_t max_clients) {
-        clients = ClientsPool(max_clients);
+        clients = internal::PoolClients(max_clients);
 
         // Handle some work to the context before it closes automatically
         task_wait_for_connection();  // TODO error check
@@ -131,12 +133,10 @@ namespace rain_net {
         }
     }
 
-    void Server::send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message) {
+    bool Server::send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message) {
         assert(client_connection != nullptr);
 
-        if (client_connection->is_open()) {
-            client_connection->send(message);
-        } else {
+        if (!client_connection->is_open()) {
             // Client has disconnected for any reason
             on_client_disconnected(client_connection);
 
@@ -145,6 +145,12 @@ namespace rain_net {
 
             // Remove this specific client from the list
             active_connections.remove(client_connection);
+
+            return false;
+        } else {
+            client_connection->send(message);
+
+            return true;
         }
     }
 
@@ -152,7 +158,7 @@ namespace rain_net {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
-            const auto& client_connection = *iter;
+            const auto& client_connection {*iter};
 
             assert(client_connection != nullptr);
 
@@ -160,9 +166,7 @@ namespace rain_net {
                 continue;
             }
 
-            if (client_connection->is_open()) {
-                client_connection->send(message);
-            } else {
+            if (!client_connection->is_open()) {
                 // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
 
@@ -176,6 +180,8 @@ namespace rain_net {
                 if (iter == list.end()) {
                     break;
                 }
+            } else {
+                client_connection->send(message);
             }
         }
     }
@@ -216,7 +222,7 @@ namespace rain_net {
 
                     const auto id {clients.allocate_id()};
 
-                    if (id.has_value()) {
+                    if (id) {
                         create_new_connection(std::move(socket), *id);
                     } else {
                         std::cout << "Actively rejected connection, as the server is fully occupied\n";
@@ -239,7 +245,7 @@ namespace rain_net {
         if (on_client_connected(connection)) {
             active_connections.push_front(std::move(connection));
 
-            active_connections.front()->try_connect();
+            active_connections.front()->start_communication();
 
             std::cout << "Approved connection with ID " << id << '\n';  // TODO logging
         } else {
