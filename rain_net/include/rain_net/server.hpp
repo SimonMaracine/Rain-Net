@@ -19,9 +19,9 @@
     #pragma GCC diagnostic pop
 #endif
 
-#include "rain_net/queue.hpp"
-#include "rain_net/message.hpp"
-#include "rain_net/connection.hpp"
+#include "rain_net/internal/queue.hpp"
+#include "rain_net/internal/message.hpp"
+#include "rain_net/internal/connection.hpp"
 
 namespace rain_net {
     class ClientsPool final {
@@ -75,20 +75,20 @@ namespace rain_net {
         void update(const std::uint32_t max_messages = MAX_MSG, bool wait = true);
     protected:
         // Return false to reject the client, true otherwise
-        virtual bool on_client_connected(std::shared_ptr<Connection> client_connection) = 0;
-        virtual void on_client_disconnected(std::shared_ptr<Connection> client_connection) = 0;
-        virtual void on_message_received(std::shared_ptr<Connection> client_connection, const Message& message) = 0;
+        virtual bool on_client_connected(std::shared_ptr<ClientConnection> client_connection) = 0;
+        virtual void on_client_disconnected(std::shared_ptr<ClientConnection> client_connection) = 0;
+        virtual void on_message_received(std::shared_ptr<ClientConnection> client_connection, const Message& message) = 0;
 
         // Send message to a specific client, or to everyone except a specific client
-        void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
-        void send_message_all(const Message& message, std::shared_ptr<Connection> exception = nullptr);
+        void send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
+        void send_message_all(const Message& message, std::shared_ptr<ClientConnection> exception = nullptr);
 
         // Routine to check all connections to see if they are valid
         void check_connections();
 
         // Data accessible to the derived class; don't touch these unless you really know what you're doing
-        internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
-        std::forward_list<std::shared_ptr<Connection>> active_connections;
+        internal::WaitingSyncQueue<internal::OwnedMsg<ClientConnection>> incoming_messages;
+        std::forward_list<std::shared_ptr<ClientConnection>> active_connections;
         std::uint16_t listen_port {};
     private:
         void task_wait_for_connection();

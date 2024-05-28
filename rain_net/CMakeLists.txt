@@ -5,15 +5,14 @@ add_library(asio INTERFACE)
 target_include_directories(asio INTERFACE "dependencies/asio-1.28.0/include")
 
 add_library(rain_net
+    "include/rain_net/internal/connection.hpp"
+    "include/rain_net/internal/message.hpp"
+    "include/rain_net/internal/queue.hpp"
     "include/rain_net/client.hpp"
-    "include/rain_net/connection.hpp"
-    "include/rain_net/message.hpp"
-    "include/rain_net/queue.hpp"
     "include/rain_net/server.hpp"
     "include/rain_net/version.hpp"
     "src/client.cpp"
     "src/connection.cpp"
-    "src/message.cpp"
     "src/server.cpp"
 )
 

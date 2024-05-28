@@ -12,9 +12,7 @@ struct ThisClient : public rain_net::Client {
     void ping_server() {
         rain_net::Message message {MsgType::PingServer};
 
-        // auto message {rain_net::message(rain_net::id(MsgType::PingServer), 8)};
-
-        auto current_time {std::chrono::system_clock::now()};
+        const auto current_time {std::chrono::system_clock::now()};
 
         message << current_time;
 
@@ -46,7 +44,7 @@ int main() {
 
             switch (message.id()) {
                 case MsgType::PingServer: {
-                    auto current_time {std::chrono::system_clock::now()};
+                    const auto current_time {std::chrono::system_clock::now()};
                     std::chrono::system_clock::time_point server_time;
 
                     message >> server_time;

@@ -28,7 +28,7 @@ namespace rain_net {
         asio::error_code ec;
 
         asio::ip::tcp::resolver resolver {asio_context};
-        auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
+        const auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
 
         if (ec) {
             std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
@@ -36,10 +36,10 @@ namespace rain_net {
             return false;
         }
 
-        connection = std::make_unique<internal::ServerConnection>(
+        connection = std::make_unique<ServerConnection>(
             &asio_context,
-            &incoming_messages,
             asio::ip::tcp::socket(asio_context),
+            &incoming_messages,
             endpoints,
             on_connected
         );

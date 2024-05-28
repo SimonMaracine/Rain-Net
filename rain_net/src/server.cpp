@@ -121,7 +121,7 @@ namespace rain_net {
         std::uint32_t messages_processed {0};
 
         while (messages_processed < max_messages && !incoming_messages.empty()) {
-            internal::OwnedMsg owned_msg {incoming_messages.pop_front()};
+            const auto owned_msg {incoming_messages.pop_front()};
 
             assert(owned_msg.remote != nullptr);
 
@@ -131,7 +131,7 @@ namespace rain_net {
         }
     }
 
-    void Server::send_message(std::shared_ptr<Connection> client_connection, const Message& message) {
+    void Server::send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message) {
         assert(client_connection != nullptr);
 
         if (client_connection->is_open()) {
@@ -148,7 +148,7 @@ namespace rain_net {
         }
     }
 
-    void Server::send_message_all(const Message& message, std::shared_ptr<Connection> exception) {
+    void Server::send_message_all(const Message& message, std::shared_ptr<ClientConnection> exception) {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
@@ -229,10 +229,10 @@ namespace rain_net {
     }
 
     void Server::create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id) {
-        auto connection {std::make_shared<internal::ClientConnection>(
+        const auto connection {std::make_shared<ClientConnection>(
             &asio_context,
-            &incoming_messages,
             std::move(socket),
+            &incoming_messages,
             id
         )};
 

@@ -16,11 +16,9 @@
     #pragma GCC diagnostic pop
 #endif
 
-// Should include asio
-
 static std::vector<unsigned char> buffer;
 
-void task_grab_some_data(asio::ip::tcp::socket& socket) {
+static void task_grab_some_data(asio::ip::tcp::socket& socket) {
     socket.async_read_some(asio::buffer(buffer.data(), buffer.size()),
         [&](asio::error_code ec, std::size_t size) {
             if (ec) {
@@ -39,7 +37,7 @@ void task_grab_some_data(asio::ip::tcp::socket& socket) {
     );
 }
 
-void check_error(const asio::error_code& ec) {
+static void check_error(const asio::error_code& ec) {
     if (ec) {
         std::cout << "[ERROR]: " << ec.message() << '\n';
         std::exit(1);
@@ -84,12 +82,12 @@ int main() {
 
     check_error(ec);
 
-    // // Wait until there is some bytes available
+    // Wait until there is some bytes available
     // socket.wait(socket.wait_read, ec);
 
     // check_error(ec);
 
-    // // Ask if there are any bytes available to read without blocking
+    // Ask if there are any bytes available to read without blocking
     // const std::size_t bytes = socket.available(ec);
 
     // check_error(ec);

@@ -11,6 +11,8 @@
 
 namespace rain_net {
     namespace internal {
+        class Connection;
+
         inline constexpr std::size_t MAX_ITEM_SIZE {std::numeric_limits<std::uint16_t>::max()};
 
         struct MsgHeader final {
@@ -18,8 +20,6 @@ namespace rain_net {
             std::uint16_t payload_size {};  // TODO memory layout
         };
     }
-
-    class Connection;
 
     // Class representing a message, a blob of data
     // Messages can only contain trivially copyable types like numbers, C strings and POD structs
@@ -80,18 +80,16 @@ namespace rain_net {
         internal::MsgHeader header;
         mutable std::vector<unsigned char> payload;
 
-        friend std::ostream& operator<<(std::ostream& stream, const Message& message);
-
-        friend class Connection;
+        friend class internal::Connection;
     };
 
-    // Print message
-    std::ostream& operator<<(std::ostream& stream, const Message& message);
-
     namespace internal {
+        template<typename T>
         struct OwnedMsg final {
+            static_assert(std::is_base_of_v<internal::Connection, T>);
+
             Message message;
-            std::shared_ptr<Connection> remote;
+            std::shared_ptr<T> remote;
         };
     }
 }

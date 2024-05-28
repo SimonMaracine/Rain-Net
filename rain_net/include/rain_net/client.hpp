@@ -18,9 +18,9 @@
     #pragma GCC diagnostic pop
 #endif
 
-#include "rain_net/queue.hpp"
-#include "rain_net/message.hpp"
-#include "rain_net/connection.hpp"
+#include "rain_net/internal/queue.hpp"
+#include "rain_net/internal/message.hpp"
+#include "rain_net/internal/connection.hpp"
 
 namespace rain_net {
     // Base class for the client application
@@ -50,8 +50,8 @@ namespace rain_net {
 
         // These are accessible to the public for inspection
         // Don't modify anything, if you don't know what you're doing
-        internal::Queue<internal::OwnedMsg> incoming_messages;
-        std::unique_ptr<Connection> connection;
+        internal::SyncQueue<internal::OwnedMsg<ServerConnection>> incoming_messages;
+        std::unique_ptr<ServerConnection> connection;
     private:
         asio::io_context asio_context;
         std::thread context_thread;
