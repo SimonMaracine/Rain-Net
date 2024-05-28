@@ -21,41 +21,40 @@
 
 #include "rain_net/queue.hpp"
 #include "rain_net/message.hpp"
-
-// Include this also for the user
 #include "rain_net/connection.hpp"
 
 namespace rain_net {
-    class ClientsPool {
+    class ClientsPool final {
     public:
         ClientsPool() = default;
+        ClientsPool(std::uint32_t size);
         ~ClientsPool();
 
         ClientsPool(const ClientsPool&) = delete;
         ClientsPool& operator=(const ClientsPool&) = delete;
-        ClientsPool(ClientsPool&&) = delete;
-        ClientsPool& operator=(ClientsPool&&) = delete;
+        ClientsPool(ClientsPool&& other) noexcept;
+        ClientsPool& operator=(ClientsPool&& other) noexcept;
 
-        void create_pool(std::uint32_t size);
-        void destroy_pool();
         std::optional<std::uint32_t> allocate_id();
         void deallocate_id(std::uint32_t id);
     private:
-        std::optional<std::uint32_t> search_id(std::uint32_t begin, std::uint32_t end);
+        void create_pool(std::uint32_t size);
+        void destroy_pool();
+        std::optional<std::uint32_t> search_and_allocate_id(std::uint32_t begin, std::uint32_t end);
 
-        bool* pool = nullptr;  // False means it's not allocated
-        std::uint32_t id_pointer = 0;
-        std::uint32_t size = 0;
+        bool* pool {nullptr};  // False means it's not allocated
+        std::uint32_t id_pointer {};
+        std::uint32_t size {};
     };
 
     // Base class for the server program
     class Server {
     public:
         // Basically infinity
-        static constexpr std::uint32_t MAX_MSG = std::numeric_limits<std::uint32_t>::max();
+        static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
 
         // The port number is specified at creation time
-        Server(std::uint16_t port)
+        explicit Server(std::uint16_t port)
             : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
         virtual ~Server();
@@ -67,18 +66,18 @@ namespace rain_net {
 
         // Start, stop the server; you should call stop()
         // Here you can specify the maximum amount of connected clients allowed
-        void start(std::uint32_t max_clients = 65'536);
+        void start(std::uint32_t max_clients = std::numeric_limits<std::uint16_t>::max());
         void stop();
 
         // Call this in a loop to continuously receive messages
         // You can specify a maximum amount of processed messages before returning
         // Set wait to true, to put the CPU to sleep when there is no work to do
-        void update(const std::uint32_t max_messages = MAX_MSG, bool wait = false);
+        void update(const std::uint32_t max_messages = MAX_MSG, bool wait = true);
     protected:
         // Return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<Connection> client_connection) = 0;
         virtual void on_client_disconnected(std::shared_ptr<Connection> client_connection) = 0;
-        virtual void on_message_received(std::shared_ptr<Connection> client_connection, Message& message) = 0;
+        virtual void on_message_received(std::shared_ptr<Connection> client_connection, const Message& message) = 0;
 
         // Send message to a specific client, or to everyone except a specific client
         void send_message(std::shared_ptr<Connection> client_connection, const Message& message);
@@ -90,7 +89,7 @@ namespace rain_net {
         // Data accessible to the derived class; don't touch these unless you really know what you're doing
         internal::WaitingQueue<internal::OwnedMsg> incoming_messages;
         std::forward_list<std::shared_ptr<Connection>> active_connections;
-        std::uint16_t listen_port = 0;
+        std::uint16_t listen_port {};
     private:
         void task_wait_for_connection();
         void create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id);
@@ -102,6 +101,6 @@ namespace rain_net {
 
         ClientsPool clients;
 
-        bool stoppable = false;
+        bool stoppable {false};
     };
 }

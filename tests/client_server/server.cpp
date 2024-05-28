@@ -5,7 +5,7 @@
 
 #include <rain_net/server.hpp>
 
-enum class MsgType : std::uint16_t {
+enum MsgType : std::uint16_t {
     PingServer
 };
 
@@ -23,9 +23,9 @@ struct ThisServer : public rain_net::Server {
         std::cout << "Removed client " << client_connection->get_id() << '\n';
     }
 
-    void on_message_received(std::shared_ptr<rain_net::Connection> client_connection, rain_net::Message& message) override {
+    void on_message_received(std::shared_ptr<rain_net::Connection> client_connection, const rain_net::Message& message) override {
         switch (message.id()) {
-            case rain_net::id(MsgType::PingServer):
+            case MsgType::PingServer:
                 std::cout << "Ping request from " << client_connection->get_id() << '\n';
 
                 // Just send the same message back

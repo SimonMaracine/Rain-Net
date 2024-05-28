@@ -10,13 +10,13 @@
 #include <rain_net/queue.hpp>
 #include <rain_net/version.hpp>
 
-enum class Foo : std::uint16_t {
+enum Foo : std::uint16_t {
     One,
     Two
 };
 
 int main() {
-    rain_net::Message message {rain_net::message(rain_net::id(Foo::Two), 20)};
+    rain_net::Message message {Foo::Two};
 
     message << 1 << 2 << 3;
 

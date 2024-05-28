@@ -86,33 +86,25 @@ namespace rain_net {
         template<typename T>
         class WaitingQueue final : public Queue<T> {
         public:
-            WaitingQueue() = default;
-            virtual ~WaitingQueue() = default;
-
-            WaitingQueue(const WaitingQueue&) = delete;
-            WaitingQueue& operator=(const WaitingQueue&) = delete;
-            WaitingQueue(WaitingQueue&&) = delete;
-            WaitingQueue& operator=(WaitingQueue&&) = delete;
-
-            virtual void push_back(const T& item) override {
+            void push_back(const T& item) override {
                 Queue<T>::push_back(item);
 
                 cv.notify_one();
             }
 
-            virtual void push_back(T&& item) override {
+            void push_back(T&& item) override {
                 Queue<T>::push_back(std::move(item));
 
                 cv.notify_one();
             }
 
-            virtual void push_front(const T& item) override {
+            void push_front(const T& item) override {
                 Queue<T>::push_front(item);
 
                 cv.notify_one();
             }
 
-            virtual void push_front(T&& item) override {
+            void push_front(T&& item) override {
                 Queue<T>::push_front(std::move(item));
 
                 cv.notify_one();
@@ -122,7 +114,7 @@ namespace rain_net {
                 using namespace std::chrono_literals;
 
                 std::unique_lock<std::mutex> lock {mutex};
-                cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });
+                cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });  // TODO
             }
         private:
             std::condition_variable cv;

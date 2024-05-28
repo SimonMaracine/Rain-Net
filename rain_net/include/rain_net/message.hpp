@@ -4,18 +4,18 @@
 #include <cstddef>
 #include <vector>
 #include <cstring>
-#include <ostream>
+#include <iosfwd>
 #include <type_traits>
 #include <memory>
 #include <limits>
 
 namespace rain_net {
     namespace internal {
-        inline constexpr std::size_t MAX_ITEM_SIZE = std::numeric_limits<std::uint16_t>::max();
+        inline constexpr std::size_t MAX_ITEM_SIZE {std::numeric_limits<std::uint16_t>::max()};
 
         struct MsgHeader final {
             std::uint16_t id {};
-            std::uint16_t payload_size = 0;  // TODO memory layout
+            std::uint16_t payload_size {};  // TODO memory layout
         };
     }
 
@@ -25,6 +25,12 @@ namespace rain_net {
     // Messages can only contain trivially copyable types like numbers, C strings and POD structs
     class Message final {
     public:
+        Message() = default;
+
+        explicit Message(std::uint16_t id) {
+            header.id = id;
+        }
+
         std::size_t size() const {
             return sizeof(internal::MsgHeader) + header.payload_size;
         }
@@ -42,7 +48,7 @@ namespace rain_net {
             );
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const std::size_t write_position = payload.size();
+            const std::size_t write_position {payload.size()};
 
             payload.resize(payload.size() + sizeof(T));
             std::memcpy(payload.data() + write_position, &data, sizeof(T));
@@ -54,14 +60,14 @@ namespace rain_net {
 
         // Write data from message; reading must be done in reverse
         template<typename T>
-        Message& operator>>(T& data) {
+        const Message& operator>>(T& data) const {
             static_assert(
                 std::is_trivially_copyable_v<T>,
                 "Type must be trivial, like a fundamental data type or a plain-old-data type"
             );
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const std::size_t read_position = payload.size() - sizeof(T);
+            const std::size_t read_position {payload.size() - sizeof(T)};
 
             std::memcpy(&data, payload.data() + read_position, sizeof(T));
             payload.resize(read_position);
@@ -72,29 +78,15 @@ namespace rain_net {
         }
     private:
         internal::MsgHeader header;
-        std::vector<unsigned char> payload;
+        mutable std::vector<unsigned char> payload;
 
         friend std::ostream& operator<<(std::ostream& stream, const Message& message);
-
-        friend Message message(std::uint16_t id, std::size_t size_reserved);
 
         friend class Connection;
     };
 
-    // Create a new empty message with specified ID and pre-allocated size
-    Message message(std::uint16_t id, std::size_t size_reserved);
-
     // Print message
     std::ostream& operator<<(std::ostream& stream, const Message& message);
-
-    // Convert enum type to ID type
-    template<typename E>
-    constexpr std::uint16_t id(E enum_id) {
-        static_assert(std::is_enum_v<E>, "Type must be an enumeration");
-        static_assert(sizeof(E) <= sizeof(std::uint16_t), "Enumeration type must be at most 2 bytes");
-
-        return static_cast<std::uint16_t>(enum_id);
-    }
 
     namespace internal {
         struct OwnedMsg final {

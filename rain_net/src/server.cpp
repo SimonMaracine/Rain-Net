@@ -1,9 +1,5 @@
-#include <cstdint>
-#include <memory>
-#include <thread>
-#include <forward_list>
-#include <limits>
-#include <optional>
+#include "rain_net/server.hpp"
+
 #include <utility>
 #include <cassert>
 #include <algorithm>
@@ -14,22 +10,52 @@
     #pragma GCC diagnostic ignored "-Wconversion"
 #endif
 
-#include <asio/io_context.hpp>
 #include <asio/error_code.hpp>
-#include <asio/ip/tcp.hpp>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic pop
 #endif
 
-#include "rain_net/server.hpp"
-#include "rain_net/queue.hpp"
-#include "rain_net/message.hpp"
-#include "rain_net/connection.hpp"
-
 namespace rain_net {
+    ClientsPool::ClientsPool(std::uint32_t size) {
+        create_pool(size);
+    }
+
     ClientsPool::~ClientsPool() {
         destroy_pool();
+    }
+
+    ClientsPool::ClientsPool(ClientsPool&& other) noexcept
+        : pool(std::exchange(other.pool, nullptr)), id_pointer(other.id_pointer), size(other.size) {}
+
+    ClientsPool& ClientsPool::operator=(ClientsPool&& other) noexcept {
+        delete[] pool;
+
+        pool = std::exchange(other.pool, nullptr);
+        id_pointer = other.id_pointer;
+        size = other.size;
+
+        return *this;
+    }
+
+    std::optional<std::uint32_t> ClientsPool::allocate_id() {
+        const auto result {search_and_allocate_id(id_pointer, size)};
+
+        if (result != std::nullopt) {
+            return result;
+        }
+
+        // No ID found; start searching from the beginning
+
+        return search_and_allocate_id(0, id_pointer);
+
+        // Returns ID or null, if really nothing found
+    }
+
+    void ClientsPool::deallocate_id(std::uint32_t id) {
+        assert(pool[id]);
+
+        pool[id] = false;
     }
 
     void ClientsPool::create_pool(std::uint32_t size) {
@@ -42,26 +68,8 @@ namespace rain_net {
         pool = nullptr;
     }
 
-    std::optional<std::uint32_t> ClientsPool::allocate_id() {
-        const auto result = search_id(id_pointer, size);
-
-        if (result != std::nullopt) {
-            return result;
-        }
-
-        // No ID found; start searching from the beginning
-
-        return search_id(0, id_pointer);
-
-        // Returns ID or null, if really nothing found
-    }
-
-    void ClientsPool::deallocate_id(std::uint32_t id) {
-        pool[id] = false;
-    }
-
-    std::optional<std::uint32_t> ClientsPool::search_id(std::uint32_t begin, std::uint32_t end) {
-        for (std::uint32_t id = begin; id < end; id++) {
+    std::optional<std::uint32_t> ClientsPool::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) {
+        for (std::uint32_t id {begin}; id < end; id++) {
             if (!pool[id]) {
                 pool[id] = true;
                 id_pointer = (id + 1) % size;
@@ -78,7 +86,7 @@ namespace rain_net {
     }
 
     void Server::start(std::uint32_t max_clients) {
-        clients.create_pool(max_clients);
+        clients = ClientsPool(max_clients);
 
         // Handle some work to the context before it closes automatically
         task_wait_for_connection();  // TODO error check
@@ -99,7 +107,6 @@ namespace rain_net {
 
         asio_context.stop();
         context_thread.join();
-        clients.destroy_pool();
 
         std::cout << "Server stopped\n";
 
@@ -111,10 +118,10 @@ namespace rain_net {
             incoming_messages.wait();
         }
 
-        std::uint32_t messages_processed = 0;
+        std::uint32_t messages_processed {0};
 
         while (messages_processed < max_messages && !incoming_messages.empty()) {
-            internal::OwnedMsg owned_msg = incoming_messages.pop_front();
+            internal::OwnedMsg owned_msg {incoming_messages.pop_front()};
 
             assert(owned_msg.remote != nullptr);
 
@@ -142,10 +149,10 @@ namespace rain_net {
     }
 
     void Server::send_message_all(const Message& message, std::shared_ptr<Connection> exception) {
-        const auto& list = active_connections;
+        const auto& list {active_connections};
 
-        for (auto before_iter = list.before_begin(), iter = list.begin(); iter != list.end(); before_iter++, iter++) {
-            auto& client_connection = *iter;
+        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
+            const auto& client_connection = *iter;
 
             assert(client_connection != nullptr);
 
@@ -174,10 +181,10 @@ namespace rain_net {
     }
 
     void Server::check_connections() {
-        const auto& list = active_connections;
+        const auto& list {active_connections};
 
-        for (auto before_iter = list.before_begin(), iter = list.begin(); iter != list.end(); before_iter++, iter++) {
-            auto& client_connection = *iter;
+        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
+            const auto& client_connection = *iter;
 
             assert(client_connection != nullptr);
 
@@ -207,7 +214,7 @@ namespace rain_net {
                 } else {
                     std::cout << "Accepted a new connection: " << socket.remote_endpoint() << '\n';
 
-                    const auto id = clients.allocate_id();
+                    const auto id {clients.allocate_id()};
 
                     if (id.has_value()) {
                         create_new_connection(std::move(socket), *id);
@@ -222,12 +229,12 @@ namespace rain_net {
     }
 
     void Server::create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id) {
-        auto connection = std::make_shared<internal::ClientConnection>(
+        auto connection {std::make_shared<internal::ClientConnection>(
             &asio_context,
             &incoming_messages,
             std::move(socket),
             id
-        );
+        )};
 
         if (on_client_connected(connection)) {
             active_connections.push_front(std::move(connection));

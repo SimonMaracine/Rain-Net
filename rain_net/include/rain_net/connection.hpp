@@ -25,7 +25,11 @@ namespace rain_net {
     // Base connection class; this one is used by the user
     class Connection {
     public:
-        Connection(asio::io_context* asio_context, internal::Queue<internal::OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket)
+        Connection(
+            asio::io_context* asio_context,
+            internal::Queue<internal::OwnedMsg>* incoming_messages,
+            asio::ip::tcp::socket&& tcp_socket
+        )
             : asio_context(asio_context), incoming_messages(incoming_messages), tcp_socket(std::move(tcp_socket)) {}
 
         virtual ~Connection() noexcept = default;  // FIXME hmm
@@ -59,8 +63,8 @@ namespace rain_net {
         void task_send_message(const Message& message);
         void task_close_socket();
 
-        asio::io_context* asio_context = nullptr;
-        internal::Queue<internal::OwnedMsg>* incoming_messages = nullptr;
+        asio::io_context* asio_context {nullptr};
+        internal::Queue<internal::OwnedMsg>* incoming_messages {nullptr};
 
         asio::ip::tcp::socket tcp_socket;
         internal::Queue<Message> outgoing_messages;
@@ -68,22 +72,19 @@ namespace rain_net {
         Message current_incoming_message;
 
         // Set to true only once at the beginning
-        std::atomic<bool> established_connection = false;
+        std::atomic_bool established_connection {false};
     };
 
     namespace internal {
         // Owner of this is the server
         class ClientConnection final : public Connection, public std::enable_shared_from_this<ClientConnection> {
         public:
-            ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages,
-                asio::ip::tcp::socket&& tcp_socket, std::uint32_t client_id);
-
-            virtual ~ClientConnection() noexcept = default;
-
-            ClientConnection(const ClientConnection&) = delete;
-            ClientConnection& operator=(const ClientConnection&) = delete;
-            ClientConnection(ClientConnection&&) = delete;
-            ClientConnection& operator=(ClientConnection&&) = delete;
+            ClientConnection(
+                asio::io_context* asio_context,
+                Queue<OwnedMsg>* incoming_messages,
+                asio::ip::tcp::socket&& tcp_socket,
+                std::uint32_t client_id
+            );
 
             virtual void try_connect() override;
             virtual std::uint32_t get_id() const override;
@@ -96,16 +97,14 @@ namespace rain_net {
         // Owner of this is the client
         class ServerConnection final : public Connection {
         public:
-            ServerConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket,
-                const asio::ip::tcp::resolver::results_type& endpoints, const std::function<void()>& on_connected)
+            ServerConnection(
+                asio::io_context* asio_context,
+                Queue<OwnedMsg>* incoming_messages,
+                asio::ip::tcp::socket&& tcp_socket,
+                const asio::ip::tcp::resolver::results_type& endpoints,
+                const std::function<void()>& on_connected
+            )
                 : Connection(asio_context, incoming_messages, std::move(tcp_socket)), endpoints(endpoints), on_connected(on_connected) {}
-
-            virtual ~ServerConnection() noexcept = default;
-
-            ServerConnection(const ServerConnection&) = delete;
-            ServerConnection& operator=(const ServerConnection&) = delete;
-            ServerConnection(ServerConnection&&) = delete;
-            ServerConnection& operator=(ServerConnection&&) = delete;
 
             virtual void try_connect() override;
         private:

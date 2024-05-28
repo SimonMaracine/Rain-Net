@@ -1,11 +1,13 @@
-#include <utility>
-#include <memory>
-#include <atomic>
-#include <cstdint>
-#include <functional>
-#include <cassert>
-#include <cstddef>
+#include "rain_net/connection.hpp"
+
 #include <iostream>
+#include <cstddef>
+#include <cassert>
+
+#ifdef __GNUG__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
+#endif
 
 #include <asio/buffer.hpp>
 #include <asio/read.hpp>
@@ -13,12 +15,10 @@
 #include <asio/post.hpp>
 #include <asio/connect.hpp>
 #include <asio/error_code.hpp>
-#include <asio/io_context.hpp>
-#include <asio/ip/tcp.hpp>
 
-#include "rain_net/connection.hpp"
-#include "rain_net/message.hpp"
-#include "rain_net/queue.hpp"
+#ifdef __GNUG__
+    #pragma GCC diagnostic pop
+#endif
 
 namespace rain_net {
     std::uint32_t Connection::get_id() const {
@@ -182,7 +182,12 @@ namespace rain_net {
     }
 
     namespace internal {
-        ClientConnection::ClientConnection(asio::io_context* asio_context, Queue<OwnedMsg>* incoming_messages, asio::ip::tcp::socket&& tcp_socket, std::uint32_t client_id)
+        ClientConnection::ClientConnection(
+            asio::io_context* asio_context,
+            Queue<OwnedMsg>* incoming_messages,
+            asio::ip::tcp::socket&& tcp_socket,
+            std::uint32_t client_id
+        )
             : Connection(asio_context, incoming_messages, std::move(tcp_socket)), client_id(client_id) {
             // The connection has established before
             established_connection.store(true);

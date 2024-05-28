@@ -4,13 +4,15 @@
 
 #include <rain_net/client.hpp>
 
-enum class MsgType : std::uint16_t {
+enum MsgType : std::uint16_t {
     PingServer
 };
 
 struct ThisClient : public rain_net::Client {
     void ping_server() {
-        auto message {rain_net::message(rain_net::id(MsgType::PingServer), 8)};
+        rain_net::Message message {MsgType::PingServer};
+
+        // auto message {rain_net::message(rain_net::id(MsgType::PingServer), 8)};
 
         auto current_time {std::chrono::system_clock::now()};
 
@@ -34,15 +36,16 @@ int main() {
         client.ping_server();
 
         while (true) {
-            auto result {client.next_incoming_message()};
-            rain_net::Message message {result.value_or(rain_net::Message())};
+            const auto result {client.next_incoming_message()};
 
             if (!result.has_value()) {
                 break;
             }
 
+            const rain_net::Message& message {*result};
+
             switch (message.id()) {
-                case rain_net::id(MsgType::PingServer): {
+                case MsgType::PingServer: {
                     auto current_time {std::chrono::system_clock::now()};
                     std::chrono::system_clock::time_point server_time;
 

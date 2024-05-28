@@ -1,9 +1,5 @@
-#include <thread>
-#include <memory>
-#include <string_view>
-#include <cstdint>
-#include <optional>
-#include <functional>
+#include "rain_net/client.hpp"
+
 #include <string>
 #include <iostream>
 
@@ -12,18 +8,12 @@
     #pragma GCC diagnostic ignored "-Wconversion"
 #endif
 
-#include <asio/io_context.hpp>
 #include <asio/error_code.hpp>
 #include <asio/ip/tcp.hpp>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic pop
 #endif
-
-#include "rain_net/client.hpp"
-#include "rain_net/queue.hpp"
-#include "rain_net/message.hpp"
-#include "rain_net/connection.hpp"
 
 namespace rain_net {
     Client::~Client() {
@@ -38,7 +28,7 @@ namespace rain_net {
         asio::error_code ec;
 
         asio::ip::tcp::resolver resolver {asio_context};
-        auto endpoints = resolver.resolve(host, std::to_string(port), ec);
+        auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
 
         if (ec) {
             std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
