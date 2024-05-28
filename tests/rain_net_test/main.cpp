@@ -16,7 +16,7 @@ enum class Foo : std::uint16_t {
 };
 
 int main() {
-    rain_net::Message message = rain_net::message(rain_net::id(Foo::Two), 20);
+    rain_net::Message message {rain_net::message(rain_net::id(Foo::Two), 20)};
 
     message << 1 << 2 << 3;
 
@@ -31,18 +31,18 @@ int main() {
     asio::io_context ctx;
     rain_net::internal::Queue<rain_net::internal::OwnedMsg> q;
 
-    [[maybe_unused]] rain_net::Connection* connection = (
+    [[maybe_unused]] rain_net::Connection* connection {
         new rain_net::internal::ClientConnection(&ctx, &q, asio::ip::tcp::socket(ctx), 0)
-    );
+    };
 
     delete connection;
 
     asio::ip::tcp::resolver resolver {ctx};
-    auto endpoints = resolver.resolve("localhost", "12345");
+    auto endpoints {resolver.resolve("localhost", "12345")};
 
-    [[maybe_unused]] rain_net::Connection* connection2 = (
+    [[maybe_unused]] rain_net::Connection* connection2 {
         new rain_net::internal::ServerConnection(&ctx, &q, asio::ip::tcp::socket(ctx), endpoints, []() {})
-    );
+    };
 
     delete connection2;
 

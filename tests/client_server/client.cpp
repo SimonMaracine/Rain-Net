@@ -1,6 +1,6 @@
-#include <chrono>
 #include <iostream>
 #include <cstdint>
+#include <chrono>
 
 #include <rain_net/client.hpp>
 
@@ -8,12 +8,11 @@ enum class MsgType : std::uint16_t {
     PingServer
 };
 
-class ThisClient : public rain_net::Client {
-public:
+struct ThisClient : public rain_net::Client {
     void ping_server() {
-        auto message = rain_net::message(rain_net::id(MsgType::PingServer), 8);
+        auto message {rain_net::message(rain_net::id(MsgType::PingServer), 8)};
 
-        auto current_time = std::chrono::system_clock::now();
+        auto current_time {std::chrono::system_clock::now()};
 
         message << current_time;
 
@@ -29,14 +28,14 @@ int main() {
     }
 
     while (true) {
-        std::cout << client.is_connected() << std::endl;
+        std::cout << client.is_connected() << '\n';
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         client.ping_server();
 
         while (true) {
-            auto result = client.next_incoming_message();
-            rain_net::Message message = result.value_or(rain_net::Message());
+            auto result {client.next_incoming_message()};
+            rain_net::Message message {result.value_or(rain_net::Message())};
 
             if (!result.has_value()) {
                 break;
@@ -44,7 +43,7 @@ int main() {
 
             switch (message.id()) {
                 case rain_net::id(MsgType::PingServer): {
-                    auto current_time = std::chrono::system_clock::now();
+                    auto current_time {std::chrono::system_clock::now()};
                     std::chrono::system_clock::time_point server_time;
 
                     message >> server_time;

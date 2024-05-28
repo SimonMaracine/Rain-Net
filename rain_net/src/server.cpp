@@ -9,9 +9,18 @@
 #include <algorithm>
 #include <iostream>
 
+#ifdef __GNUG__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
+#endif
+
 #include <asio/io_context.hpp>
 #include <asio/error_code.hpp>
 #include <asio/ip/tcp.hpp>
+
+#ifdef __GNUG__
+    #pragma GCC diagnostic pop
+#endif
 
 #include "rain_net/server.hpp"
 #include "rain_net/queue.hpp"

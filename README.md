@@ -6,7 +6,7 @@ server over the reliable and connection-oriented **TCP** protocol.
 It is used to build both the client and the server side. Check out the header files for some
 documentation and see the `client_server` example in `tests`.
 
-It requires `C++ 17`. I tested it on `GCC 13` and `MSVC 19.36`.
+It requires `C++17`. I tested it on `GCC 13.2` and `MSVC 19.36`.
 
 If you use CMake in your project, then that's good! It's best to add this repository as a submodule:
 

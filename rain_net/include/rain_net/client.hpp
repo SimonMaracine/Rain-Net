@@ -7,7 +7,16 @@
 #include <optional>
 #include <functional>
 
+#ifdef __GNUG__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
+#endif
+
 #include <asio/io_context.hpp>
+
+#ifdef __GNUG__
+    #pragma GCC diagnostic pop
+#endif
 
 #include "rain_net/queue.hpp"
 #include "rain_net/message.hpp"
