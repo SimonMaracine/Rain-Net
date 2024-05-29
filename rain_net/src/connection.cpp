@@ -23,11 +23,11 @@
 namespace rain_net {
     namespace internal {
         void Connection::close() {
-            if (!tcp_socket.is_open()) {
-                return;
-            }
-
             task_close_socket();
+        }
+
+        void Connection::close_now() {
+            tcp_socket.close();
         }
 
         bool Connection::is_open() const {
@@ -39,8 +39,6 @@ namespace rain_net {
         }
 
         void Connection::task_read_header() {
-            static_assert(std::is_trivially_copyable_v<internal::MsgHeader>);
-
             asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader)),
                 [this](asio::error_code ec, [[maybe_unused]] std::size_t size) {
                     if (ec) {
@@ -85,7 +83,6 @@ namespace rain_net {
         }
 
         void Connection::task_write_header() {
-            static_assert(std::is_trivially_copyable_v<internal::MsgHeader>);
             assert(!outgoing_messages.empty());
 
             asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader)),
@@ -153,7 +150,7 @@ namespace rain_net {
             // This really needs to be a task
             asio::post(*asio_context,
                 [this, message]() {
-                    const bool writing_tasks_stopped = outgoing_messages.empty();
+                    const bool writing_tasks_stopped {outgoing_messages.empty()};
 
                     outgoing_messages.push_back(message);
 
@@ -168,7 +165,7 @@ namespace rain_net {
         void Connection::task_close_socket() {
             asio::post(*asio_context,
                 [this]() {
-                    tcp_socket.close();
+                    tcp_socket.close();  // FIXME throws exception
                 }
             );
         }

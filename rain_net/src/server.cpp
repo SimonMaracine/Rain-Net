@@ -2,8 +2,8 @@
 
 #include <iostream>
 #include <utility>
-#include <cassert>
 #include <algorithm>
+#include <cassert>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -115,7 +115,7 @@ namespace rain_net {
         stoppable = false;
     }
 
-    void Server::update(const std::uint32_t max_messages, bool wait) {
+    void Server::update(std::uint32_t max_messages, bool wait) {
         if (wait) {
             incoming_messages.wait();
         }
@@ -137,13 +137,8 @@ namespace rain_net {
         assert(client_connection != nullptr);
 
         if (!client_connection->is_open()) {
-            // Client has disconnected for any reason
             on_client_disconnected(client_connection);
-
-            // Get back the ID
             clients.deallocate_id(client_connection->get_id());
-
-            // Remove this specific client from the list
             active_connections.remove(client_connection);
 
             return false;
@@ -167,13 +162,8 @@ namespace rain_net {
             }
 
             if (!client_connection->is_open()) {
-                // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
-
-                // Get back the ID
                 clients.deallocate_id(client_connection->get_id());
-
-                // Delete this client
                 iter = active_connections.erase_after(before_iter);
 
                 // If we erased the last element, this check is essential
@@ -195,13 +185,8 @@ namespace rain_net {
             assert(client_connection != nullptr);
 
             if (!client_connection->is_open()) {
-                // Client has disconnected for any reason
                 on_client_disconnected(client_connection);
-
-                // Get back the ID
                 clients.deallocate_id(client_connection->get_id());
-
-                // Delete this client
                 iter = active_connections.erase_after(before_iter);
 
                 // If we erased the last element, this check is essential
@@ -222,10 +207,10 @@ namespace rain_net {
 
                     const auto id {clients.allocate_id()};
 
-                    if (id) {
-                        create_new_connection(std::move(socket), *id);
-                    } else {
+                    if (!id) {
                         std::cout << "Actively rejected connection, as the server is fully occupied\n";
+                    } else {
+                        create_new_connection(std::move(socket), *id);
                     }
                 }
 
@@ -249,6 +234,7 @@ namespace rain_net {
 
             std::cout << "Approved connection with ID " << id << '\n';  // TODO logging
         } else {
+            connection->close_now();
             clients.deallocate_id(id);  // Take back the unused ID
 
             std::cout << "Actively rejected connection from server side code\n";

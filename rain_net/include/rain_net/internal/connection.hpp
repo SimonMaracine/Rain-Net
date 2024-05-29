@@ -25,18 +25,23 @@ namespace rain_net {
     namespace internal {
         class Connection {
         public:
-            ~Connection() = default;  // FIXME hmm
+            ~Connection() = default;
 
             Connection(const Connection&) = delete;
             Connection& operator=(const Connection&) = delete;
             Connection(Connection&&) = delete;
             Connection& operator=(Connection&&) = delete;
 
-            // Close the connection and check its status
+            // Close the connection asynchronously
             void close();
+
+            // Close the connection immediately
+            void close_now();
+
+            // Check connection status
             bool is_open() const;
 
-            // Low level send message routine; you shouldn't really use this
+            // Send the message asynchronously
             void send(const Message& message);
         protected:
             Connection(asio::io_context* asio_context, asio::ip::tcp::socket&& tcp_socket)

@@ -17,8 +17,10 @@ namespace rain_net {
 
         struct MsgHeader final {
             std::uint16_t id {};
-            std::uint16_t payload_size {};  // TODO memory layout
+            std::uint16_t payload_size {};
         };
+
+        static_assert(std::is_trivially_copyable_v<MsgHeader>);
     }
 
     // Class representing a message, a blob of data
@@ -58,7 +60,7 @@ namespace rain_net {
             return *this;
         }
 
-        // Write data from message; reading must be done in reverse
+        // Read data from message; must be done in reverse
         template<typename T>
         const Message& operator>>(T& data) const {
             static_assert(

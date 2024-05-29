@@ -28,7 +28,7 @@ namespace rain_net {
         class PoolClients final {
         public:
             PoolClients() = default;
-            PoolClients(std::uint32_t size);
+            explicit PoolClients(std::uint32_t size);
             ~PoolClients();
 
             PoolClients(const PoolClients&) = delete;
@@ -74,11 +74,15 @@ namespace rain_net {
         // Call this in a loop to continuously receive messages
         // You can specify a maximum amount of processed messages before returning
         // Set wait to false, to not put the CPU to sleep when there is no work to do
-        void update(const std::uint32_t max_messages = MAX_MSG, bool wait = true);
+        void update(std::uint32_t max_messages = MAX_MSG, bool wait = true);
     protected:
-        // Return false to reject the client, true otherwise
+        // Called when a new client tries to connect; return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<ClientConnection> client_connection) = 0;
+
+        // Called when a client disconnection is detected
         virtual void on_client_disconnected(std::shared_ptr<ClientConnection> client_connection) = 0;
+
+        // Called for every message received from every client
         virtual void on_message_received(std::shared_ptr<ClientConnection> client_connection, const Message& message) = 0;
 
         // Send message to a specific client; return false, if nothing could be sent, true otherwise
