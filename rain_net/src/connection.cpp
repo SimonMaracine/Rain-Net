@@ -22,12 +22,8 @@
 
 namespace rain_net {
     namespace internal {
-        void Connection::close() {
-            task_close_socket();
-        }
-
-        void Connection::close_now() {
-            tcp_socket.close();
+        void Connection::close() {  // FIXME causes assertions to fail
+            tcp_socket.close();  // FIXME throws exception
         }
 
         bool Connection::is_open() const {
@@ -158,14 +154,6 @@ namespace rain_net {
                     if (writing_tasks_stopped) {
                         task_write_header();
                     }
-                }
-            );
-        }
-
-        void Connection::task_close_socket() {
-            asio::post(*asio_context,
-                [this]() {
-                    tcp_socket.close();  // FIXME throws exception
                 }
             );
         }

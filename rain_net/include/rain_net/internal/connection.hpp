@@ -23,7 +23,7 @@
 
 namespace rain_net {
     namespace internal {
-        class Connection {
+        class Connection {  // TODO remove this
         public:
             ~Connection() = default;
 
@@ -32,11 +32,8 @@ namespace rain_net {
             Connection(Connection&&) = delete;
             Connection& operator=(Connection&&) = delete;
 
-            // Close the connection asynchronously
-            void close();
-
             // Close the connection immediately
-            void close_now();
+            void close();
 
             // Check connection status
             bool is_open() const;
@@ -55,11 +52,10 @@ namespace rain_net {
             void task_read_payload();
             void task_write_header();
             void task_write_payload();
-            void task_try_send_message(const Message& message);
+            void task_try_send_message(const Message& message);  // TODO remove the need for this
             void task_send_message(const Message& message);
-            void task_close_socket();
 
-            asio::io_context* asio_context {nullptr};
+            asio::io_context* asio_context {nullptr};  // TODO remove this
 
             asio::ip::tcp::socket tcp_socket;
             internal::SyncQueue<Message> outgoing_messages;

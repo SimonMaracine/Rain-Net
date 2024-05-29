@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cstdint>
+#include <cstdlib>
+#include <csignal>
 #include <chrono>
 
 #include <rain_net/client.hpp>
@@ -20,15 +22,25 @@ struct ThisClient : public rain_net::Client {
     }
 };
 
+static volatile bool running {true};
+
 int main() {
+    const auto handler {
+        [](int) { running = false; }
+    };
+
+    if (std::signal(SIGINT, handler) == SIG_ERR) {
+        std::abort();
+    }
+
     ThisClient client;
 
     if (!client.connect("localhost", 6001)) {
         return 1;
     }
 
-    while (true) {
-        std::cout << client.is_connected() << '\n';
+    while (running) {
+        std::cout << client.is_connection_open() << '\n';
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         client.ping_server();

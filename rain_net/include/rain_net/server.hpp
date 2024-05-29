@@ -57,16 +57,17 @@ namespace rain_net {
 
         // The port number is specified at creation time
         explicit Server(std::uint16_t port)
-            : listen_port(port), acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
+            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
 
-        virtual ~Server();
+        virtual ~Server() = default;
 
         Server(const Server&) = delete;
         Server& operator=(const Server&) = delete;
         Server(Server&&) = delete;
         Server& operator=(Server&&) = delete;
 
-        // Start, stop the server; you should call stop()
+        // Start, stop the server; you should call stop() only after calling start()
+        // Calling start() then restarts the server
         // Here you can specify the maximum amount of connected clients allowed
         void start(std::uint32_t max_clients = std::numeric_limits<std::uint16_t>::max());
         void stop();
@@ -94,20 +95,17 @@ namespace rain_net {
         // Routine to check all connections to see if they are valid
         void check_connections();
 
-        // Data accessible to the derived class; don't touch these unless you really know what you're doing
+        // Don't touch these unless you really know what you're doing
         internal::WaitingSyncQueue<internal::OwnedMsg<ClientConnection>> incoming_messages;
         std::forward_list<std::shared_ptr<ClientConnection>> active_connections;
-        std::uint16_t listen_port {};
     private:
-        void task_wait_for_connection();
+        void task_accept_connection();
         void create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id);
 
-        asio::io_context asio_context;
         std::thread context_thread;
+        asio::io_context asio_context;
         asio::ip::tcp::acceptor acceptor;
 
         internal::PoolClients clients;
-
-        bool stoppable {false};
     };
 }

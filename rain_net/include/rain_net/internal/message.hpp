@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <vector>
 #include <cstring>
-#include <iosfwd>
 #include <type_traits>
 #include <memory>
 #include <limits>
@@ -41,13 +40,10 @@ namespace rain_net {
             return header.id;
         }
 
-        // Write data to message
+        // Write data to the message
         template<typename T>
         Message& operator<<(const T& data) {
-            static_assert(
-                std::is_trivially_copyable_v<T>,
-                "Type must be trivial, like a fundamental data type or a plain-old-data type"
-            );
+            static_assert(std::is_trivially_copyable_v<T>);
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
             const std::size_t write_position {payload.size()};
@@ -60,13 +56,10 @@ namespace rain_net {
             return *this;
         }
 
-        // Read data from message; must be done in reverse
+        // Read data from the message; must be done in reverse
         template<typename T>
         const Message& operator>>(T& data) const {
-            static_assert(
-                std::is_trivially_copyable_v<T>,
-                "Type must be trivial, like a fundamental data type or a plain-old-data type"
-            );
+            static_assert(std::is_trivially_copyable_v<T>);
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
             const std::size_t read_position {payload.size() - sizeof(T)};

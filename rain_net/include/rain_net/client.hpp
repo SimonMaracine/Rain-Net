@@ -29,18 +29,24 @@ namespace rain_net {
         using OnConnected = std::function<void()>;
 
         Client() = default;
-        virtual ~Client();
+        virtual ~Client() = default;
 
         Client(const Client&) = delete;
         Client& operator=(const Client&) = delete;
         Client(Client&&) = delete;
         Client& operator=(Client&&) = delete;
 
-        // Connect, disconnect and check connection to server
+        // Connect to the server; you should call disconnect() only after calling connect()
+        // Calling connect() then reconnects to the server
         // on_connected is called when the connection is established; be aware of race conditions
+        // connect() returns false when the host could not be resolved
         bool connect(std::string_view host, std::uint16_t port, const OnConnected& on_connected = []() {});
+
+        // Disconnect from the server
         void disconnect();
-        bool is_connected() const;
+
+        // Check the connection status; return true if the socket is open, false otherwise
+        bool is_connection_open() const;
 
         // Send a message to the server; return false, if nothing could be sent, true otherwise
         bool send_message(const Message& message);
@@ -48,12 +54,11 @@ namespace rain_net {
         // Poll the next message from the server; you usually do it in a loop until std::nullopt
         std::optional<Message> next_incoming_message();
 
-        // These are accessible to the public for inspection
-        // Don't modify anything, if you don't know what you're doing
+        // Don't touch these unless you really know what you're doing
         internal::SyncQueue<internal::OwnedMsg<ServerConnection>> incoming_messages;
         std::unique_ptr<ServerConnection> connection;
     private:
-        asio::io_context asio_context;
         std::thread context_thread;
+        asio::io_context asio_context;
     };
 }

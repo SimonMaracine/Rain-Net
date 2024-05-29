@@ -16,10 +16,6 @@
 #endif
 
 namespace rain_net {
-    Client::~Client() {
-        disconnect();
-    }
-
     bool Client::connect(std::string_view host, std::uint16_t port, const OnConnected& on_connected) {
         if (asio_context.stopped()) {
             asio_context.restart();
@@ -54,17 +50,13 @@ namespace rain_net {
     }
 
     void Client::disconnect() {
-        if (connection == nullptr) {
-            return;
-        }
-
         connection->close();
         asio_context.stop();
         context_thread.join();
         connection.reset();
     }
 
-    bool Client::is_connected() const {
+    bool Client::is_connection_open() const {
         if (connection == nullptr) {
             return false;
         }
@@ -73,11 +65,7 @@ namespace rain_net {
     }
 
     bool Client::send_message(const Message& message) {
-        if (connection == nullptr) {
-            return false;
-        }
-
-        if (!is_connected()) {
+        if (!is_connection_open()) {
             return false;
         }
 

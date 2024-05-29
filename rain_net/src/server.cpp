@@ -83,36 +83,28 @@ namespace rain_net {
         }
     }
 
-    Server::~Server() {
-        stop();
-    }
-
     void Server::start(std::uint32_t max_clients) {
+        if (asio_context.stopped()) {
+            asio_context.restart();
+        }
+
         clients = internal::PoolClients(max_clients);
 
         // Handle some work to the context before it closes automatically
-        task_wait_for_connection();  // TODO error check
+        task_accept_connection();  // TODO error check
 
         context_thread = std::thread([this]() {
             asio_context.run();
         });
 
-        std::cout << "Server started on port " << listen_port << '\n';  // TODO logging
-
-        stoppable = true;
+        std::cout << "Server started\n";  // TODO logging
     }
 
     void Server::stop() {
-        if (!stoppable) {
-            return;
-        }
-
         asio_context.stop();
         context_thread.join();
 
         std::cout << "Server stopped\n";
-
-        stoppable = false;
     }
 
     void Server::update(std::uint32_t max_messages, bool wait) {
@@ -197,7 +189,7 @@ namespace rain_net {
         }
     }
 
-    void Server::task_wait_for_connection() {
+    void Server::task_accept_connection() {
         acceptor.async_accept(
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                 if (ec) {
@@ -205,16 +197,18 @@ namespace rain_net {
                 } else {
                     std::cout << "Accepted a new connection: " << socket.remote_endpoint() << '\n';
 
-                    const auto id {clients.allocate_id()};
+                    const auto new_id {clients.allocate_id()};
 
-                    if (!id) {
+                    if (!new_id) {
                         std::cout << "Actively rejected connection, as the server is fully occupied\n";
+
+                        socket.close();
                     } else {
-                        create_new_connection(std::move(socket), *id);
+                        create_new_connection(std::move(socket), *new_id);
                     }
                 }
 
-                task_wait_for_connection();
+                task_accept_connection();
             }
         );
     }
@@ -228,13 +222,12 @@ namespace rain_net {
         )};
 
         if (on_client_connected(connection)) {
-            active_connections.push_front(std::move(connection));
-
-            active_connections.front()->start_communication();
+            active_connections.push_front(connection);
+            connection->start_communication();
 
             std::cout << "Approved connection with ID " << id << '\n';  // TODO logging
         } else {
-            connection->close_now();
+            connection->close();
             clients.deallocate_id(id);  // Take back the unused ID
 
             std::cout << "Actively rejected connection from server side code\n";
