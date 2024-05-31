@@ -9,9 +9,10 @@
 #include <limits>
 
 namespace rain_net {
-    namespace internal {
-        class Connection;
+    class ClientConnection;
+    class ServerConnection;
 
+    namespace internal {
         inline constexpr std::size_t MAX_ITEM_SIZE {std::numeric_limits<std::uint16_t>::max()};
 
         struct MsgHeader final {
@@ -75,16 +76,14 @@ namespace rain_net {
         internal::MsgHeader header;
         mutable std::vector<unsigned char> payload;
 
-        friend class internal::Connection;
+        friend class ClientConnection;
+        friend class ServerConnection;
     };
 
     namespace internal {
-        template<typename T>
         struct OwnedMsg final {
-            static_assert(std::is_base_of_v<internal::Connection, T>);
-
             Message message;
-            std::shared_ptr<T> remote;
+            std::shared_ptr<ClientConnection> remote;
         };
     }
 }

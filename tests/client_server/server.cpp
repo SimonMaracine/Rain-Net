@@ -11,16 +11,14 @@ enum MsgType : std::uint16_t {
 
 struct ThisServer : public rain_net::Server {
     explicit ThisServer(std::uint16_t port)
-        : rain_net::Server(port) {}
+        : rain_net::Server(port, &std::cerr) {}
 
     bool on_client_connected(std::shared_ptr<rain_net::ClientConnection> client_connection) override {
-        std::cout << "Yaay... " << client_connection->get_id() << '\n';
-
         return true;
     }
 
     void on_client_disconnected(std::shared_ptr<rain_net::ClientConnection> client_connection) override {
-        std::cout << "Removed client " << client_connection->get_id() << '\n';
+
     }
 
     void on_message_received(std::shared_ptr<rain_net::ClientConnection> client_connection, const rain_net::Message& message) override {
@@ -50,14 +48,9 @@ int main() {
     ThisServer server {6001};
     server.start();
 
-    std::cout << "Started\n";
-
     while (running) {
         server.update();
-        std::cout << "Returned from update\n";
     }
 
     server.stop();
-
-    std::cout << "Stopped\n";
 }

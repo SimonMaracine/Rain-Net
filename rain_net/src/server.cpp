@@ -1,6 +1,6 @@
 #include "rain_net/server.hpp"
 
-#include <iostream>
+#include <ostream>
 #include <utility>
 #include <algorithm>
 #include <cassert>
@@ -20,23 +20,6 @@ namespace rain_net {
     namespace internal {
         PoolClients::PoolClients(std::uint32_t size) {
             create_pool(size);
-        }
-
-        PoolClients::~PoolClients() {
-            destroy_pool();
-        }
-
-        PoolClients::PoolClients(PoolClients&& other) noexcept
-            : pool(std::exchange(other.pool, nullptr)), id_pointer(other.id_pointer), size(other.size) {}
-
-        PoolClients& PoolClients::operator=(PoolClients&& other) noexcept {
-            delete[] pool;
-
-            pool = std::exchange(other.pool, nullptr);
-            id_pointer = other.id_pointer;
-            size = other.size;
-
-            return *this;
         }
 
         std::optional<std::uint32_t> PoolClients::allocate_id() {
@@ -60,13 +43,8 @@ namespace rain_net {
         }
 
         void PoolClients::create_pool(std::uint32_t size) {
-            pool = new bool[size];
+            pool = std::make_unique<bool[]>(size);
             this->size = size;
-        }
-
-        void PoolClients::destroy_pool() {
-            delete[] pool;
-            pool = nullptr;
         }
 
         std::optional<std::uint32_t> PoolClients::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) {
@@ -90,31 +68,48 @@ namespace rain_net {
 
         clients = internal::PoolClients(max_clients);
 
-        // Handle some work to the context before it closes automatically
-        task_accept_connection();  // TODO error check
+        running = true;
+
+        task_accept_connection();
 
         context_thread = std::thread([this]() {
-            asio_context.run();
+            try {
+                asio_context.run();
+            } catch (const std::system_error& e) {
+                if (stream) {
+                    *stream << "Critical error: " << e.what() << "\n";
+                }
+            }
         });
 
-        std::cout << "Server started\n";  // TODO logging
+        if (stream) {
+            *stream << "Server started with max " << max_clients << " clients\n";
+        }
     }
 
     void Server::stop() {
-        asio_context.stop();
+        for (const auto& connection : active_connections) {
+            connection->close();
+        }
+
+        running = false;
+
+        acceptor.cancel();
         context_thread.join();
 
-        std::cout << "Server stopped\n";
+        if (stream) {
+            *stream << "Server stopped\n";
+        }
     }
 
     void Server::update(std::uint32_t max_messages, bool wait) {
-        if (wait) {
-            incoming_messages.wait();
-        }
+        // if (wait) {
+        //     incoming_messages.wait();  // FIXME
+        // }
 
         std::uint32_t messages_processed {0};
 
-        while (messages_processed < max_messages && !incoming_messages.empty()) {
+        while (!incoming_messages.empty() && messages_processed < max_messages) {
             const auto owned_msg {incoming_messages.pop_front()};
 
             assert(owned_msg.remote != nullptr);
@@ -123,6 +118,10 @@ namespace rain_net {
 
             messages_processed++;
         }
+    }
+
+    bool Server::available() const {
+        return !incoming_messages.empty();
     }
 
     bool Server::send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message) {
@@ -141,7 +140,30 @@ namespace rain_net {
         }
     }
 
-    void Server::send_message_all(const Message& message, std::shared_ptr<ClientConnection> exception) {
+    void Server::send_message_broadcast(const Message& message) {
+        const auto& list {active_connections};
+
+        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
+            const auto& client_connection {*iter};
+
+            assert(client_connection != nullptr);
+
+            if (!client_connection->is_open()) {
+                on_client_disconnected(client_connection);
+                clients.deallocate_id(client_connection->get_id());
+                iter = active_connections.erase_after(before_iter);
+
+                // If we erased the last element, this check is essential
+                if (iter == list.end()) {
+                    break;
+                }
+            } else {
+                client_connection->send(message);
+            }
+        }
+    }
+
+    void Server::send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception) {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
@@ -193,14 +215,24 @@ namespace rain_net {
         acceptor.async_accept(
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                 if (ec) {
-                    std::cout << "Could not accept a new connection: " << ec.message() << '\n';  // TODO logging
+                    if (stream) {
+                        *stream << "Could not accept new connection: " << ec.message() << '\n';
+                    }
+
+                    if (!running) {
+                        return;
+                    }
                 } else {
-                    std::cout << "Accepted a new connection: " << socket.remote_endpoint() << '\n';
+                    if (stream) {
+                        *stream << "Accepted new connection: " << socket.remote_endpoint() << '\n';
+                    }
 
                     const auto new_id {clients.allocate_id()};
 
                     if (!new_id) {
-                        std::cout << "Actively rejected connection, as the server is fully occupied\n";
+                        if (stream) {
+                            *stream << "Actively rejected connection; pool is full\n";
+                        }
 
                         socket.close();
                     } else {
@@ -225,12 +257,16 @@ namespace rain_net {
             active_connections.push_front(connection);
             connection->start_communication();
 
-            std::cout << "Approved connection with ID " << id << '\n';  // TODO logging
+            if (stream) {
+                *stream << "Approved connection [" << id << "]\n";
+            }
         } else {
             connection->close();
             clients.deallocate_id(id);  // Take back the unused ID
 
-            std::cout << "Actively rejected connection from server side code\n";
+            if (stream) {
+                *stream << "Actively rejected connection from server side code\n";
+            }
         }
     }
 }

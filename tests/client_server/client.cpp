@@ -39,9 +39,19 @@ int main() {
         return 1;
     }
 
+    while (!client.is_connected()) {
+        std::cout << "Not yet connected\n";
+    }
+
+    std::cout << "Connected\n";
+
     while (running) {
-        std::cout << client.is_connection_open() << '\n';
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (!client.is_socket_open()) {
+            std::cout << "Unexpected disconnection\n";
+            break;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         client.ping_server();
 

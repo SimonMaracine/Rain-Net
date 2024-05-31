@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <stdexcept>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -16,7 +17,7 @@
 #endif
 
 namespace rain_net {
-    bool Client::connect(std::string_view host, std::uint16_t port, const OnConnected& on_connected) {
+    bool Client::connect(std::string_view host, std::uint16_t port) {
         if (asio_context.stopped()) {
             asio_context.restart();
         }
@@ -36,14 +37,17 @@ namespace rain_net {
             &asio_context,
             asio::ip::tcp::socket(asio_context),
             &incoming_messages,
-            endpoints,
-            on_connected
+            endpoints
         );
 
         connection->connect();
 
         context_thread = std::thread([this]() {
-            asio_context.run();
+            try {
+                asio_context.run();
+            } catch (const std::system_error& e) {
+                std::cout << "Critical error: " << e.what() << "\n";
+            }
         });
 
         return true;
@@ -51,12 +55,19 @@ namespace rain_net {
 
     void Client::disconnect() {
         connection->close();
-        asio_context.stop();
         context_thread.join();
         connection.reset();
     }
 
-    bool Client::is_connection_open() const {
+    bool Client::is_connected() const {
+        if (connection == nullptr) {
+            return false;
+        }
+
+        return connection->is_connected();
+    }
+
+    bool Client::is_socket_open() const {
         if (connection == nullptr) {
             return false;
         }
@@ -65,7 +76,7 @@ namespace rain_net {
     }
 
     bool Client::send_message(const Message& message) {
-        if (!is_connection_open()) {
+        if (!is_socket_open()) {
             return false;
         }
 
@@ -79,6 +90,6 @@ namespace rain_net {
             return std::nullopt;
         }
 
-        return std::make_optional(incoming_messages.pop_front().message);
+        return std::make_optional(incoming_messages.pop_front());
     }
 }

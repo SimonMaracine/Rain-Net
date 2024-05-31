@@ -23,7 +23,7 @@
 
 namespace rain_net {
     namespace internal {
-        class Connection {  // TODO remove this
+        class Connection {
         public:
             ~Connection() = default;
 
@@ -32,38 +32,21 @@ namespace rain_net {
             Connection(Connection&&) = delete;
             Connection& operator=(Connection&&) = delete;
 
-            // Close the connection immediately
+            // Close the connection asynchronously
             void close();
 
             // Check connection status
             bool is_open() const;
-
-            // Send the message asynchronously
-            void send(const Message& message);
         protected:
             Connection(asio::io_context* asio_context, asio::ip::tcp::socket&& tcp_socket)
                 : asio_context(asio_context), tcp_socket(std::move(tcp_socket)) {}
 
-            // These must be virtual and it's okay
-            virtual void add_to_incoming_messages() = 0;
-            virtual std::uint32_t get_id() const = 0;
-
-            void task_read_header();
-            void task_read_payload();
-            void task_write_header();
-            void task_write_payload();
-            void task_try_send_message(const Message& message);  // TODO remove the need for this
-            void task_send_message(const Message& message);
-
-            asio::io_context* asio_context {nullptr};  // TODO remove this
-
+            asio::io_context* asio_context {nullptr};
             asio::ip::tcp::socket tcp_socket;
+
             internal::SyncQueue<Message> outgoing_messages;
 
             Message current_incoming_message;
-
-            // Set to true only once at the beginning
-            std::atomic_bool established_connection {false};
         };
     }
 
@@ -73,18 +56,28 @@ namespace rain_net {
         ClientConnection(
             asio::io_context* asio_context,
             asio::ip::tcp::socket&& tcp_socket,
-            internal::WaitingSyncQueue<internal::OwnedMsg<ClientConnection>>* incoming_messages,
+            internal::SyncQueue<internal::OwnedMsg>* incoming_messages,
             std::uint32_t client_id
-        );
+        )
+            : Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages), client_id(client_id) {}
+
+        // Send the message asynchronously
+        void send(const Message& message);
 
         void start_communication();
-        std::uint32_t get_id() const override;
+        std::uint32_t get_id() const;
     private:
-        void add_to_incoming_messages() override;
+        void task_write_header();
+        void task_write_payload();
+        void task_read_header();
+        void task_read_payload();
+        void task_send_message(const Message& message);
 
-        internal::WaitingSyncQueue<internal::OwnedMsg<ClientConnection>>* incoming_messages {nullptr};
+        void add_to_incoming_messages();
 
-        std::uint32_t client_id {};  // This is given by the server
+        internal::SyncQueue<internal::OwnedMsg>* incoming_messages {nullptr};
+
+        std::uint32_t client_id {};  // Given by the server
     };
 
     // Owner of this is the client
@@ -93,22 +86,31 @@ namespace rain_net {
         ServerConnection(
             asio::io_context* asio_context,
             asio::ip::tcp::socket&& tcp_socket,
-            internal::SyncQueue<internal::OwnedMsg<ServerConnection>>* incoming_messages,
-            const asio::ip::tcp::resolver::results_type& endpoints,
-            const std::function<void()>& on_connected
+            internal::SyncQueue<Message>* incoming_messages,
+            const asio::ip::tcp::resolver::results_type& endpoints
         )
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            endpoints(endpoints), on_connected(on_connected) {}
+            endpoints(endpoints) {}
+
+        // Send the message asynchronously
+        void send(const Message& message);
 
         void connect();
+        bool is_connected() const;
     private:
-        void add_to_incoming_messages() override;
-        std::uint32_t get_id() const override;
+        void task_write_header();
+        void task_write_payload();
+        void task_read_header();
+        void task_read_payload();
+        void task_send_message(const Message& message);
         void task_connect_to_server();
 
-        internal::SyncQueue<internal::OwnedMsg<ServerConnection>>* incoming_messages {nullptr};
+        void add_to_incoming_messages();
+
+        internal::SyncQueue<Message>* incoming_messages {nullptr};
+
+        std::atomic_bool established_connection {false};
 
         asio::ip::tcp::resolver::results_type endpoints;
-        std::function<void()> on_connected;
     };
 }

@@ -53,22 +53,22 @@ namespace rain_net {
                 return item;
             }
 
-            const T& back() {
+            const T& back() const {
                 std::lock_guard<std::mutex> lock {mutex};
                 return queue.back();
             }
 
-            const T& front() {
+            const T& front() const {
                 std::lock_guard<std::mutex> lock {mutex};
                 return queue.front();
             }
 
-            bool empty() {
+            bool empty() const {
                 std::lock_guard<std::mutex> lock {mutex};
                 return queue.empty();
             }
 
-            std::size_t size() {
+            std::size_t size() const {
                 std::lock_guard<std::mutex> lock {mutex};
                 return queue.size();
             }
@@ -81,44 +81,44 @@ namespace rain_net {
             Queue() = default;
         private:
             std::deque<T> queue;
-            std::mutex mutex;
+            mutable std::mutex mutex;
         };
 
         template<typename T>
         class SyncQueue final : public Queue<T> {};
 
-        template<typename T>
-        class WaitingSyncQueue final : public Queue<T> {
-        public:
-            void push_back(const T& item) {
-                Queue<T>::push_back(item);
-                cv.notify_one();
-            }
+        // template<typename T>
+        // class WaitingSyncQueue final : public Queue<T> {
+        // public:
+        //     void push_back(const T& item) {
+        //         Queue<T>::push_back(item);
+        //         cv.notify_one();
+        //     }
 
-            void push_back(T&& item) {
-                Queue<T>::push_back(std::move(item));
-                cv.notify_one();
-            }
+        //     void push_back(T&& item) {
+        //         Queue<T>::push_back(std::move(item));
+        //         cv.notify_one();
+        //     }
 
-            void push_front(const T& item) {
-                Queue<T>::push_front(item);
-                cv.notify_one();
-            }
+        //     void push_front(const T& item) {
+        //         Queue<T>::push_front(item);
+        //         cv.notify_one();
+        //     }
 
-            void push_front(T&& item) {
-                Queue<T>::push_front(std::move(item));
-                cv.notify_one();
-            }
+        //     void push_front(T&& item) {
+        //         Queue<T>::push_front(std::move(item));
+        //         cv.notify_one();
+        //     }
 
-            void wait() {
-                using namespace std::chrono_literals;
+        //     void wait() {
+        //         using namespace std::chrono_literals;
 
-                std::unique_lock<std::mutex> lock {mutex};
-                cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });  // TODO
-            }
-        private:
-            std::condition_variable cv;
-            std::mutex mutex;
-        };
+        //         std::unique_lock<std::mutex> lock {mutex};
+        //         cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });  // TODO
+        //     }
+        // private:
+        //     std::condition_variable cv;
+        //     std::mutex mutex;
+        // };
     }
 }

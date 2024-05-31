@@ -6,6 +6,7 @@
 #include <forward_list>
 #include <limits>
 #include <optional>
+#include <iosfwd>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -29,21 +30,20 @@ namespace rain_net {
         public:
             PoolClients() = default;
             explicit PoolClients(std::uint32_t size);
-            ~PoolClients();
+            ~PoolClients() = default;
 
             PoolClients(const PoolClients&) = delete;
             PoolClients& operator=(const PoolClients&) = delete;
-            PoolClients(PoolClients&& other) noexcept;
-            PoolClients& operator=(PoolClients&& other) noexcept;
+            PoolClients(PoolClients&& other) noexcept = default;
+            PoolClients& operator=(PoolClients&& other) noexcept = default;
 
             std::optional<std::uint32_t> allocate_id();
             void deallocate_id(std::uint32_t id);
         private:
             void create_pool(std::uint32_t size);
-            void destroy_pool();
             std::optional<std::uint32_t> search_and_allocate_id(std::uint32_t begin, std::uint32_t end);
 
-            bool* pool {nullptr};  // False means it's not allocated
+            std::unique_ptr<bool[]> pool;  // False means it's not allocated
             std::uint32_t id_pointer {};
             std::uint32_t size {};
         };
@@ -56,8 +56,8 @@ namespace rain_net {
         static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
 
         // The port number is specified at creation time
-        explicit Server(std::uint16_t port)
-            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {}
+        explicit Server(std::uint16_t port, std::ostream* stream = nullptr)
+            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), stream(stream) {}
 
         virtual ~Server() = default;
 
@@ -76,6 +76,8 @@ namespace rain_net {
         // You can specify a maximum amount of processed messages before returning
         // Set wait to false, to not put the CPU to sleep when there is no work to do
         void update(std::uint32_t max_messages = MAX_MSG, bool wait = true);
+
+        bool available() const;
     protected:
         // Called when a new client tries to connect; return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<ClientConnection> client_connection) = 0;
@@ -89,14 +91,16 @@ namespace rain_net {
         // Send message to a specific client; return false, if nothing could be sent, true otherwise
         bool send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
 
+        void send_message_broadcast(const Message& message);
+
         // Send a message to everyone except a specific client
-        void send_message_all(const Message& message, std::shared_ptr<ClientConnection> exception = nullptr);
+        void send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception);
 
         // Routine to check all connections to see if they are valid
         void check_connections();
 
         // Don't touch these unless you really know what you're doing
-        internal::WaitingSyncQueue<internal::OwnedMsg<ClientConnection>> incoming_messages;
+        internal::SyncQueue<internal::OwnedMsg> incoming_messages;
         std::forward_list<std::shared_ptr<ClientConnection>> active_connections;
     private:
         void task_accept_connection();
@@ -107,5 +111,7 @@ namespace rain_net {
         asio::ip::tcp::acceptor acceptor;
 
         internal::PoolClients clients;
+        std::ostream* stream {nullptr};
+        bool running {false};
     };
 }

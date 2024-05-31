@@ -26,8 +26,8 @@ int main() {
     std::cout << message.id() << ", " << message.size() << '\n';
 
     asio::io_context ctx;
-    rain_net::internal::WaitingSyncQueue<rain_net::internal::OwnedMsg<rain_net::ClientConnection>> q1;
-    rain_net::internal::SyncQueue<rain_net::internal::OwnedMsg<rain_net::ServerConnection>> q2;
+    rain_net::internal::SyncQueue<rain_net::internal::OwnedMsg> q1;
+    rain_net::internal::SyncQueue<rain_net::Message> q2;
 
     rain_net::ClientConnection* connection {
         new rain_net::ClientConnection(&ctx, asio::ip::tcp::socket(ctx), &q1, 0)
@@ -39,7 +39,7 @@ int main() {
     auto endpoints {resolver.resolve("localhost", "12345")};
 
     rain_net::ServerConnection* connection2 {
-        new rain_net::ServerConnection(&ctx, asio::ip::tcp::socket(ctx), &q2, endpoints, []() {})
+        new rain_net::ServerConnection(&ctx, asio::ip::tcp::socket(ctx), &q2, endpoints)
     };
 
     delete connection2;
