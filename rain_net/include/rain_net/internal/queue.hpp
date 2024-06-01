@@ -3,21 +3,20 @@
 #include <deque>
 #include <mutex>
 #include <utility>
-#include <condition_variable>
 #include <cstddef>
-#include <chrono>
 
 namespace rain_net {
     namespace internal {
         template<typename T>
-        class Queue {
+        class SyncQueue {
         public:
-            ~Queue() = default;
+            SyncQueue() = default;
+            ~SyncQueue() = default;
 
-            Queue(const Queue&) = delete;
-            Queue& operator=(const Queue&) = delete;
-            Queue(Queue&&) = delete;
-            Queue& operator=(Queue&&) = delete;
+            SyncQueue(const SyncQueue&) = delete;
+            SyncQueue& operator=(const SyncQueue&) = delete;
+            SyncQueue(SyncQueue&&) = delete;
+            SyncQueue& operator=(SyncQueue&&) = delete;
 
             void push_back(const T& item) {
                 std::lock_guard<std::mutex> lock {mutex};
@@ -77,48 +76,9 @@ namespace rain_net {
                 std::lock_guard<std::mutex> lock {mutex};
                 return queue.clear();
             }
-        protected:
-            Queue() = default;
         private:
             std::deque<T> queue;
             mutable std::mutex mutex;
         };
-
-        template<typename T>
-        class SyncQueue final : public Queue<T> {};
-
-        // template<typename T>
-        // class WaitingSyncQueue final : public Queue<T> {
-        // public:
-        //     void push_back(const T& item) {
-        //         Queue<T>::push_back(item);
-        //         cv.notify_one();
-        //     }
-
-        //     void push_back(T&& item) {
-        //         Queue<T>::push_back(std::move(item));
-        //         cv.notify_one();
-        //     }
-
-        //     void push_front(const T& item) {
-        //         Queue<T>::push_front(item);
-        //         cv.notify_one();
-        //     }
-
-        //     void push_front(T&& item) {
-        //         Queue<T>::push_front(std::move(item));
-        //         cv.notify_one();
-        //     }
-
-        //     void wait() {
-        //         using namespace std::chrono_literals;
-
-        //         std::unique_lock<std::mutex> lock {mutex};
-        //         cv.wait_for(lock, 3s, [this]() { return !Queue<T>::empty(); });  // TODO
-        //     }
-        // private:
-        //     std::condition_variable cv;
-        //     std::mutex mutex;
-        // };
     }
 }

@@ -20,43 +20,10 @@ struct ThisClient : public rain_net::Client {
 
         send_message(message);
     }
-};
 
-static volatile bool running {true};
-
-int main() {
-    const auto handler {
-        [](int) { running = false; }
-    };
-
-    if (std::signal(SIGINT, handler) == SIG_ERR) {
-        std::abort();
-    }
-
-    ThisClient client;
-
-    if (!client.connect("localhost", 6001)) {
-        return 1;
-    }
-
-    while (!client.is_connected()) {
-        std::cout << "Not yet connected\n";
-    }
-
-    std::cout << "Connected\n";
-
-    while (running) {
-        if (!client.is_socket_open()) {
-            std::cout << "Unexpected disconnection\n";
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-
-        client.ping_server();
-
+    void process_messages() {
         while (true) {
-            const auto result {client.next_incoming_message()};
+            const auto result {next_incoming_message()};
 
             if (!result.has_value()) {
                 break;
@@ -76,6 +43,50 @@ int main() {
                     break;
                 }
             }
+        }
+    }
+};
+
+static volatile bool running {true};
+
+int main() {
+    const auto handler {
+        [](int) { running = false; }
+    };
+
+    if (std::signal(SIGINT, handler) == SIG_ERR) {
+        std::abort();
+    }
+
+    ThisClient client;
+    client.connect("localhost", 6001);
+
+    if (client.fail()) {
+        std::cout << client.fail_reason() << '\n';
+        client.disconnect();
+        return 1;
+    }
+
+    while (!client.is_connected()) {
+        std::cout << "Not yet connected\n";
+
+        if (!running) {
+            client.disconnect();
+            return 1;
+        }
+    }
+
+    std::cout << "Connected\n";
+
+    while (running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+        client.ping_server();
+        client.process_messages();
+
+        if (client.fail()) {
+            std::cout << "Unexpected error: " << client.fail_reason() << '\n';
+            break;
         }
     }
 

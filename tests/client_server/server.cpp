@@ -13,11 +13,11 @@ struct ThisServer : public rain_net::Server {
     explicit ThisServer(std::uint16_t port)
         : rain_net::Server(port, &std::cerr) {}
 
-    bool on_client_connected(std::shared_ptr<rain_net::ClientConnection> client_connection) override {
+    bool on_client_connected(std::shared_ptr<rain_net::ClientConnection>) override {
         return true;
     }
 
-    void on_client_disconnected(std::shared_ptr<rain_net::ClientConnection> client_connection) override {
+    void on_client_disconnected(std::shared_ptr<rain_net::ClientConnection>) override {
 
     }
 
@@ -50,6 +50,10 @@ int main() {
 
     while (running) {
         server.update();
+
+        if (server.fail()) {
+            break;
+        }
     }
 
     server.stop();

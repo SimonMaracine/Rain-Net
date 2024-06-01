@@ -16,6 +16,8 @@
     #pragma GCC diagnostic pop
 #endif
 
+#include "rain_net/internal/error.hpp"
+
 namespace rain_net {
     namespace internal {
         PoolClients::PoolClients(std::uint32_t size) {
@@ -77,8 +79,16 @@ namespace rain_net {
                 asio_context.run();
             } catch (const std::system_error& e) {
                 if (stream) {
-                    *stream << "Critical error: " << e.what() << "\n";
+                    *stream << "Unexpected error: " << e.what() << "\n";
                 }
+
+                set_error(e.what());
+            } catch (const ConnectionError& e) {
+                if (stream) {
+                    *stream << "Unexpected error: " << e.what() << "\n";
+                }
+
+                set_error(e.what());
             }
         });
 
@@ -102,11 +112,7 @@ namespace rain_net {
         }
     }
 
-    void Server::update(std::uint32_t max_messages, bool wait) {
-        // if (wait) {
-        //     incoming_messages.wait();  // FIXME
-        // }
-
+    void Server::update(std::uint32_t max_messages) {
         std::uint32_t messages_processed {0};
 
         while (!incoming_messages.empty() && messages_processed < max_messages) {
@@ -250,7 +256,8 @@ namespace rain_net {
             &asio_context,
             std::move(socket),
             &incoming_messages,
-            id
+            id,
+            stream
         )};
 
         if (on_client_connected(connection)) {

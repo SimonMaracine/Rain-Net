@@ -1,6 +1,5 @@
 #include "rain_net/client.hpp"
 
-#include <iostream>
 #include <string>
 #include <stdexcept>
 
@@ -16,8 +15,10 @@
     #pragma GCC diagnostic pop
 #endif
 
+#include "rain_net/internal/error.hpp"
+
 namespace rain_net {
-    bool Client::connect(std::string_view host, std::uint16_t port) {
+    void Client::connect(std::string_view host, std::uint16_t port) {
         if (asio_context.stopped()) {
             asio_context.restart();
         }
@@ -28,9 +29,8 @@ namespace rain_net {
         const auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
 
         if (ec) {
-            std::cout << "Could not resolve host: " << ec.message() << '\n';  // TODO logging
-
-            return false;
+            set_error("Could not resolve host: " + ec.message());  // TODO
+            return;
         }
 
         connection = std::make_unique<ServerConnection>(
@@ -46,11 +46,11 @@ namespace rain_net {
             try {
                 asio_context.run();
             } catch (const std::system_error& e) {
-                std::cout << "Critical error: " << e.what() << "\n";
+                set_error(e.what());
+            } catch (const ConnectionError& e) {
+                set_error(e.what());
             }
         });
-
-        return true;
     }
 
     void Client::disconnect() {
@@ -75,14 +75,8 @@ namespace rain_net {
         return connection->is_open();
     }
 
-    bool Client::send_message(const Message& message) {
-        if (!is_socket_open()) {
-            return false;
-        }
-
+    void Client::send_message(const Message& message) {
         connection->send(message);
-
-        return true;
     }
 
     std::optional<Message> Client::next_incoming_message() {

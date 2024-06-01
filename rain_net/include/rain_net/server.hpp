@@ -23,6 +23,7 @@
 #include "rain_net/internal/queue.hpp"
 #include "rain_net/internal/message.hpp"
 #include "rain_net/internal/connection.hpp"
+#include "rain_net/internal/errorable.hpp"
 
 namespace rain_net {
     namespace internal {
@@ -50,13 +51,13 @@ namespace rain_net {
     }
 
     // Base class for the server program
-    class Server {
+    class Server : public internal::Errorable {
     public:
         // Basically infinity
         static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
 
         // The port number is specified at creation time
-        explicit Server(std::uint16_t port, std::ostream* stream = nullptr)
+        Server(std::uint16_t port, std::ostream* stream = nullptr)
             : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), stream(stream) {}
 
         virtual ~Server() = default;
@@ -75,9 +76,9 @@ namespace rain_net {
         // Call this in a loop to continuously receive messages
         // You can specify a maximum amount of processed messages before returning
         // Set wait to false, to not put the CPU to sleep when there is no work to do
-        void update(std::uint32_t max_messages = MAX_MSG, bool wait = true);
+        void update(std::uint32_t max_messages = MAX_MSG);
 
-        bool available() const;
+        bool available() const;  // TODO
     protected:
         // Called when a new client tries to connect; return false to reject the client, true otherwise
         virtual bool on_client_connected(std::shared_ptr<ClientConnection> client_connection) = 0;

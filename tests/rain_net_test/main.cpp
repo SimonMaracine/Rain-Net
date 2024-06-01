@@ -30,7 +30,7 @@ int main() {
     rain_net::internal::SyncQueue<rain_net::Message> q2;
 
     rain_net::ClientConnection* connection {
-        new rain_net::ClientConnection(&ctx, asio::ip::tcp::socket(ctx), &q1, 0)
+        new rain_net::ClientConnection(&ctx, asio::ip::tcp::socket(ctx), &q1, 0, nullptr)
     };
 
     delete connection;

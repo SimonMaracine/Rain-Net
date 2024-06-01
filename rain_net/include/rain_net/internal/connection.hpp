@@ -4,7 +4,7 @@
 #include <memory>
 #include <atomic>
 #include <cstdint>
-#include <functional>
+#include <iosfwd>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -45,7 +45,6 @@ namespace rain_net {
             asio::ip::tcp::socket tcp_socket;
 
             internal::SyncQueue<Message> outgoing_messages;
-
             Message current_incoming_message;
         };
     }
@@ -57,9 +56,11 @@ namespace rain_net {
             asio::io_context* asio_context,
             asio::ip::tcp::socket&& tcp_socket,
             internal::SyncQueue<internal::OwnedMsg>* incoming_messages,
-            std::uint32_t client_id
+            std::uint32_t client_id,
+            std::ostream* stream
         )
-            : Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages), client_id(client_id) {}
+            : Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
+            client_id(client_id), stream(stream) {}
 
         // Send the message asynchronously
         void send(const Message& message);
@@ -76,8 +77,8 @@ namespace rain_net {
         void add_to_incoming_messages();
 
         internal::SyncQueue<internal::OwnedMsg>* incoming_messages {nullptr};
-
         std::uint32_t client_id {};  // Given by the server
+        std::ostream* stream {nullptr};
     };
 
     // Owner of this is the client
@@ -108,9 +109,7 @@ namespace rain_net {
         void add_to_incoming_messages();
 
         internal::SyncQueue<Message>* incoming_messages {nullptr};
-
         std::atomic_bool established_connection {false};
-
         asio::ip::tcp::resolver::results_type endpoints;
     };
 }

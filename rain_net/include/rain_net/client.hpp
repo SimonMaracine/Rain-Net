@@ -20,10 +20,11 @@
 #include "rain_net/internal/queue.hpp"
 #include "rain_net/internal/message.hpp"
 #include "rain_net/internal/connection.hpp"
+#include "rain_net/internal/errorable.hpp"
 
 namespace rain_net {
     // Base class for the client application
-    class Client {
+    class Client : public internal::Errorable {
     public:
         Client() = default;
         virtual ~Client() = default;
@@ -37,18 +38,18 @@ namespace rain_net {
         // Calling connect() then reconnects to the server
         // on_connected is called when the connection is established; be aware of race conditions
         // connect() returns false when the host could not be resolved
-        bool connect(std::string_view host, std::uint16_t port);
+        void connect(std::string_view host, std::uint16_t port);
 
         // Disconnect from the server
         void disconnect();
 
         bool is_connected() const;
 
-        // Check the connection status; return true if the socket is open, false otherwise
+        // Return true if the socket is open, false otherwise
         bool is_socket_open() const;
 
         // Send a message to the server; return false, if nothing could be sent, true otherwise
-        bool send_message(const Message& message);
+        void send_message(const Message& message);
 
         // Poll the next message from the server; you usually do it in a loop until std::nullopt
         std::optional<Message> next_incoming_message();
