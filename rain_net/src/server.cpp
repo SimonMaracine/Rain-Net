@@ -1,8 +1,5 @@
 #include "rain_net/server.hpp"
 
-#include <ostream>
-#include <utility>
-#include <algorithm>
 #include <cassert>
 
 #ifdef __GNUG__
@@ -78,23 +75,17 @@ namespace rain_net {
             try {
                 asio_context.run();
             } catch (const std::system_error& e) {
-                if (stream) {
-                    *stream << "Unexpected error: " << e.what() << "\n";
-                }
+                log_fn("Unexpected error: " + std::string(e.what()));
 
                 set_error(e.what());
             } catch (const ConnectionError& e) {
-                if (stream) {
-                    *stream << "Unexpected error: " << e.what() << "\n";
-                }
+                log_fn("Unexpected error: " + std::string(e.what()));
 
                 set_error(e.what());
             }
         });
 
-        if (stream) {
-            *stream << "Server started with max " << max_clients << " clients\n";
-        }
+        log_fn("Server started with max " + std::to_string(max_clients) + " clients");
     }
 
     void Server::stop() {
@@ -107,9 +98,7 @@ namespace rain_net {
         acceptor.cancel();
         context_thread.join();
 
-        if (stream) {
-            *stream << "Server stopped\n";
-        }
+        log_fn("Server stopped");
     }
 
     void Server::update(std::uint32_t max_messages) {
@@ -221,24 +210,23 @@ namespace rain_net {
         acceptor.async_accept(
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                 if (ec) {
-                    if (stream) {
-                        *stream << "Could not accept new connection: " << ec.message() << '\n';
-                    }
+                    log_fn("Could not accept new connection: " + ec.message());
 
                     if (!running) {
                         return;
                     }
                 } else {
-                    if (stream) {
-                        *stream << "Accepted new connection: " << socket.remote_endpoint() << '\n';
-                    }
+                    log_fn(
+                        "Accepted new connection: " +
+                        socket.remote_endpoint().address().to_string() +
+                        ", " +
+                        std::to_string(socket.remote_endpoint().port())
+                    );
 
                     const auto new_id {clients.allocate_id()};
 
                     if (!new_id) {
-                        if (stream) {
-                            *stream << "Actively rejected connection; pool is full\n";
-                        }
+                        log_fn("Actively rejected connection; pool is full");
 
                         socket.close();
                     } else {
@@ -253,27 +241,23 @@ namespace rain_net {
 
     void Server::create_new_connection(asio::ip::tcp::socket&& socket, std::uint32_t id) {
         const auto connection {std::make_shared<ClientConnection>(
-            &asio_context,
+            asio_context,
             std::move(socket),
-            &incoming_messages,
+            incoming_messages,
             id,
-            stream
+            log_fn
         )};
 
         if (on_client_connected(connection)) {
             active_connections.push_front(connection);
             connection->start_communication();
 
-            if (stream) {
-                *stream << "Approved connection [" << id << "]\n";
-            }
+            log_fn("Approved connection [" + std::to_string(id) + "]");
         } else {
             connection->close();
             clients.deallocate_id(id);  // Take back the unused ID
 
-            if (stream) {
-                *stream << "Actively rejected connection from server side code\n";
-            }
+            log_fn("Actively rejected connection from server side code");
         }
     }
 }

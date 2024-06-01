@@ -30,7 +30,7 @@ int main() {
     rain_net::internal::SyncQueue<rain_net::Message> q2;
 
     rain_net::ClientConnection* connection {
-        new rain_net::ClientConnection(&ctx, asio::ip::tcp::socket(ctx), &q1, 0, nullptr)
+        new rain_net::ClientConnection(ctx, asio::ip::tcp::socket(ctx), q1, 0, {})
     };
 
     delete connection;
@@ -39,7 +39,7 @@ int main() {
     auto endpoints {resolver.resolve("localhost", "12345")};
 
     rain_net::ServerConnection* connection2 {
-        new rain_net::ServerConnection(&ctx, asio::ip::tcp::socket(ctx), &q2, endpoints)
+        new rain_net::ServerConnection(ctx, asio::ip::tcp::socket(ctx), q2, endpoints)
     };
 
     delete connection2;

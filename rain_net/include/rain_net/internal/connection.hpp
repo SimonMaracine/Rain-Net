@@ -4,7 +4,7 @@
 #include <memory>
 #include <atomic>
 #include <cstdint>
-#include <iosfwd>
+#include <functional>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -38,10 +38,10 @@ namespace rain_net {
             // Check connection status
             bool is_open() const;
         protected:
-            Connection(asio::io_context* asio_context, asio::ip::tcp::socket&& tcp_socket)
+            Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
                 : asio_context(asio_context), tcp_socket(std::move(tcp_socket)) {}
 
-            asio::io_context* asio_context {nullptr};
+            asio::io_context& asio_context;
             asio::ip::tcp::socket tcp_socket;
 
             internal::SyncQueue<Message> outgoing_messages;
@@ -53,14 +53,14 @@ namespace rain_net {
     class ClientConnection final : public internal::Connection, public std::enable_shared_from_this<ClientConnection> {
     public:
         ClientConnection(
-            asio::io_context* asio_context,
+            asio::io_context& asio_context,
             asio::ip::tcp::socket&& tcp_socket,
-            internal::SyncQueue<internal::OwnedMsg>* incoming_messages,
+            internal::SyncQueue<internal::OwnedMsg>& incoming_messages,
             std::uint32_t client_id,
-            std::ostream* stream
+            const std::function<void(std::string&&)>& log_fn
         )
             : Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            client_id(client_id), stream(stream) {}
+            log_fn(log_fn), client_id(client_id) {}
 
         // Send the message asynchronously
         void send(const Message& message);
@@ -76,18 +76,18 @@ namespace rain_net {
 
         void add_to_incoming_messages();
 
-        internal::SyncQueue<internal::OwnedMsg>* incoming_messages {nullptr};
+        internal::SyncQueue<internal::OwnedMsg>& incoming_messages;
+        const std::function<void(std::string&&)>& log_fn;
         std::uint32_t client_id {};  // Given by the server
-        std::ostream* stream {nullptr};
     };
 
     // Owner of this is the client
     class ServerConnection final : public internal::Connection {
     public:
         ServerConnection(
-            asio::io_context* asio_context,
+            asio::io_context& asio_context,
             asio::ip::tcp::socket&& tcp_socket,
-            internal::SyncQueue<Message>* incoming_messages,
+            internal::SyncQueue<Message>& incoming_messages,
             const asio::ip::tcp::resolver::results_type& endpoints
         )
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
@@ -108,7 +108,7 @@ namespace rain_net {
 
         void add_to_incoming_messages();
 
-        internal::SyncQueue<Message>* incoming_messages {nullptr};
+        internal::SyncQueue<Message>& incoming_messages;
         std::atomic_bool established_connection {false};
         asio::ip::tcp::resolver::results_type endpoints;
     };

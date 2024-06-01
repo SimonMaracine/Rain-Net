@@ -34,9 +34,9 @@ namespace rain_net {
         }
 
         connection = std::make_unique<ServerConnection>(
-            &asio_context,
+            asio_context,
             asio::ip::tcp::socket(asio_context),
-            &incoming_messages,
+            incoming_messages,
             endpoints
         );
 

@@ -6,7 +6,9 @@
 #include <forward_list>
 #include <limits>
 #include <optional>
-#include <iosfwd>
+#include <functional>
+#include <string>
+#include <utility>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -56,9 +58,11 @@ namespace rain_net {
         // Basically infinity
         static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
 
+        static constexpr auto NO_LOG {[](std::string&&) {}};
+
         // The port number is specified at creation time
-        Server(std::uint16_t port, std::ostream* stream = nullptr)
-            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), stream(stream) {}
+        Server(std::uint16_t port, std::function<void(std::string&&)> log_fn = NO_LOG)
+            : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), log_fn(std::move(log_fn)) {}
 
         virtual ~Server() = default;
 
@@ -112,7 +116,7 @@ namespace rain_net {
         asio::ip::tcp::acceptor acceptor;
 
         internal::PoolClients clients;
-        std::ostream* stream {nullptr};
+        std::function<void(std::string&&)> log_fn;
         bool running {false};
     };
 }

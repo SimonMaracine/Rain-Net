@@ -9,9 +9,13 @@ enum MsgType : std::uint16_t {
     PingServer
 };
 
+static void log(const std::string& message) {
+    std::cerr << message << '\n';
+}
+
 struct ThisServer : public rain_net::Server {
     explicit ThisServer(std::uint16_t port)
-        : rain_net::Server(port, &std::cerr) {}
+        : rain_net::Server(port, log) {}
 
     bool on_client_connected(std::shared_ptr<rain_net::ClientConnection>) override {
         return true;
