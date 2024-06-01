@@ -19,7 +19,8 @@ int main() {
 
     int a, b, c;
 
-    message >> c >> b >> a;
+    rain_net::MessageReader reader;
+    reader(message) >> c >> b >> a;
 
     std::cout << a << ' ' << b << ' ' << c << '\n';
 

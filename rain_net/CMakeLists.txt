@@ -14,6 +14,7 @@ add_library(rain_net
     "include/rain_net/version.hpp"
     "src/client.cpp"
     "src/connection.cpp"
+    "src/message.cpp"
     "src/server.cpp"
 )
 

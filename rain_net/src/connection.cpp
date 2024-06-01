@@ -83,9 +83,8 @@ namespace rain_net {
 
     void ClientConnection::task_write_payload() {
         assert(!outgoing_messages.empty());
-        assert(outgoing_messages.front().header.payload_size == outgoing_messages.front().payload.size());
 
-        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
+        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size),
             [this](asio::error_code ec, std::size_t size) {
                 if (ec) {
                     log_fn("Could not write payload [" + std::to_string(get_id()) + "]");
@@ -131,7 +130,7 @@ namespace rain_net {
                 // Check if there is a payload to read
                 if (current_incoming_message.header.payload_size > 0) {
                     // Allocate space so that we write to it later
-                    current_incoming_message.payload.resize(current_incoming_message.header.payload_size);
+                    current_incoming_message.allocate(current_incoming_message.header.payload_size);
 
                     task_read_payload();
                 } else {
@@ -143,9 +142,7 @@ namespace rain_net {
     }
 
     void ClientConnection::task_read_payload() {
-        assert(current_incoming_message.header.payload_size == current_incoming_message.payload.size());
-
-        asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
+        asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload, current_incoming_message.header.payload_size),
             [this](asio::error_code ec, std::size_t size) {
                 if (ec) {
                     log_fn("Could not read payload [" + std::to_string(get_id()) + "]");
@@ -238,9 +235,8 @@ namespace rain_net {
 
     void ServerConnection::task_write_payload() {
         assert(!outgoing_messages.empty());
-        assert(outgoing_messages.front().header.payload_size == outgoing_messages.front().payload.size());
 
-        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload.data(), outgoing_messages.front().header.payload_size),
+        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size),
             [this](asio::error_code ec, std::size_t size) {
                 if (ec) {
                     tcp_socket.close();
@@ -282,7 +278,7 @@ namespace rain_net {
                 // Check if there is a payload to read
                 if (current_incoming_message.header.payload_size > 0) {
                     // Allocate space so that we write to it later
-                    current_incoming_message.payload.resize(current_incoming_message.header.payload_size);
+                    current_incoming_message.allocate(current_incoming_message.header.payload_size);
 
                     task_read_payload();
                 } else {
@@ -294,9 +290,7 @@ namespace rain_net {
     }
 
     void ServerConnection::task_read_payload() {
-        assert(current_incoming_message.header.payload_size == current_incoming_message.payload.size());
-
-        asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload.data(), current_incoming_message.header.payload_size),
+        asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload, current_incoming_message.header.payload_size),
             [this](asio::error_code ec, std::size_t size) {
                 if (ec) {
                     tcp_socket.close();

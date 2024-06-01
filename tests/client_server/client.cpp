@@ -36,7 +36,8 @@ struct ThisClient : public rain_net::Client {
                     const auto current_time {std::chrono::system_clock::now()};
                     std::chrono::system_clock::time_point server_time;
 
-                    message >> server_time;
+                    rain_net::MessageReader reader;
+                    reader(message) >> server_time;
 
                     std::cout << "Ping: " << std::chrono::duration<double>(current_time - server_time).count() << '\n';
 
