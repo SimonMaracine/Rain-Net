@@ -56,15 +56,15 @@ namespace rain_net {
     class Server : public internal::Errorable {
     public:
         // Basically infinity
-        static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
-
         static constexpr auto NO_LOG {[](std::string&&) {}};
+        static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
+        static constexpr std::uint32_t MAX_CLIENTS {std::numeric_limits<std::uint16_t>::max()};
 
         // The port number is specified at creation time
         Server(std::uint16_t port, std::function<void(std::string&&)> log_fn = NO_LOG)
             : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), log_fn(std::move(log_fn)) {}
 
-        virtual ~Server() = default;
+        virtual ~Server();
 
         Server(const Server&) = delete;
         Server& operator=(const Server&) = delete;
@@ -74,7 +74,7 @@ namespace rain_net {
         // Start, stop the server; you should call stop() only after calling start()
         // Calling start() then restarts the server
         // Here you can specify the maximum amount of connected clients allowed
-        void start(std::uint32_t max_clients = std::numeric_limits<std::uint16_t>::max());
+        void start(std::uint32_t max_clients = MAX_CLIENTS);
         void stop();
 
         // Call this in a loop to continuously receive messages
@@ -94,7 +94,7 @@ namespace rain_net {
         virtual void on_message_received(std::shared_ptr<ClientConnection> client_connection, const Message& message) = 0;
 
         // Send message to a specific client; return false, if nothing could be sent, true otherwise
-        bool send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
+        void send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
 
         void send_message_broadcast(const Message& message);
 

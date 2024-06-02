@@ -65,13 +65,11 @@ int main() {
     do {
         if (client.fail()) {
             std::cout << client.fail_reason() << '\n';
-            client.disconnect();
             return 1;
         }
 
         if (!running) {
-            client.disconnect();
-            return 1;
+            return 0;
         }
 
         std::cout << "Not yet connected\n";
@@ -87,7 +85,7 @@ int main() {
 
         if (client.fail()) {
             std::cout << "Unexpected error: " << client.fail_reason() << '\n';
-            break;
+            return 1;
         }
     }
 

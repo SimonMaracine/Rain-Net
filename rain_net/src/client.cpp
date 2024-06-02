@@ -2,6 +2,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <cassert>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -18,6 +19,16 @@
 #include "rain_net/internal/error.hpp"
 
 namespace rain_net {
+    Client::~Client() {
+        if (connection != nullptr) {
+            connection->close();
+        }
+
+        if (context_thread.joinable()) {
+            context_thread.join();
+        }
+    }
+
     void Client::connect(std::string_view host, std::uint16_t port) {
         if (asio_context.stopped()) {
             asio_context.restart();
@@ -54,6 +65,8 @@ namespace rain_net {
     }
 
     void Client::disconnect() {
+        assert(connection != nullptr);
+
         connection->close();
         context_thread.join();
         connection.reset();
@@ -76,6 +89,8 @@ namespace rain_net {
     }
 
     void Client::send_message(const Message& message) {
+        assert(connection != nullptr);
+
         connection->send(message);
     }
 

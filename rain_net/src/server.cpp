@@ -60,6 +60,22 @@ namespace rain_net {
         }
     }
 
+    Server::~Server() {
+        for (const auto& connection : active_connections) {
+            if (connection != nullptr) {
+                connection->close();
+            }
+        }
+
+        running = false;
+
+        acceptor.cancel();
+
+        if (context_thread.joinable()) {
+            context_thread.join();
+        }
+    }
+
     void Server::start(std::uint32_t max_clients) {
         if (asio_context.stopped()) {
             asio_context.restart();
@@ -85,11 +101,13 @@ namespace rain_net {
             }
         });
 
-        log_fn("Server started with max " + std::to_string(max_clients) + " clients");
+        log_fn("Server started (max " + std::to_string(max_clients) + " clients)");
     }
 
     void Server::stop() {
         for (const auto& connection : active_connections) {
+            assert(connection != nullptr);
+
             connection->close();
         }
 
@@ -97,6 +115,10 @@ namespace rain_net {
 
         acceptor.cancel();
         context_thread.join();
+
+        for (auto& connection : active_connections) {
+            connection.reset();
+        }
 
         log_fn("Server stopped");
     }
@@ -119,42 +141,41 @@ namespace rain_net {
         return !incoming_messages.empty();
     }
 
-    bool Server::send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message) {
-        assert(client_connection != nullptr);
+    void Server::send_message(std::shared_ptr<ClientConnection> connection, const Message& message) {
+        assert(connection != nullptr);
 
-        if (!client_connection->is_open()) {
-            on_client_disconnected(client_connection);
-            clients.deallocate_id(client_connection->get_id());
-            active_connections.remove(client_connection);
-
-            return false;
-        } else {
-            client_connection->send(message);
-
-            return true;
+        if (!connection->is_open()) {
+            on_client_disconnected(connection);
+            clients.deallocate_id(connection->get_id());
+            active_connections.remove(connection);
+            return;
         }
+
+        connection->send(message);
     }
 
     void Server::send_message_broadcast(const Message& message) {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
-            const auto& client_connection {*iter};
+            const auto& connection {*iter};
 
-            assert(client_connection != nullptr);
+            assert(connection != nullptr);
 
-            if (!client_connection->is_open()) {
-                on_client_disconnected(client_connection);
-                clients.deallocate_id(client_connection->get_id());
+            if (!connection->is_open()) {
+                on_client_disconnected(connection);
+                clients.deallocate_id(connection->get_id());
                 iter = active_connections.erase_after(before_iter);
 
                 // If we erased the last element, this check is essential
                 if (iter == list.end()) {
                     break;
                 }
-            } else {
-                client_connection->send(message);
+
+                continue;
             }
+
+            connection->send(message);
         }
     }
 
@@ -162,26 +183,28 @@ namespace rain_net {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
-            const auto& client_connection {*iter};
+            const auto& connection {*iter};
 
-            assert(client_connection != nullptr);
+            assert(connection != nullptr);
 
-            if (client_connection == exception) {
+            if (connection == exception) {
                 continue;
             }
 
-            if (!client_connection->is_open()) {
-                on_client_disconnected(client_connection);
-                clients.deallocate_id(client_connection->get_id());
+            if (!connection->is_open()) {
+                on_client_disconnected(connection);
+                clients.deallocate_id(connection->get_id());
                 iter = active_connections.erase_after(before_iter);
 
                 // If we erased the last element, this check is essential
                 if (iter == list.end()) {
                     break;
                 }
-            } else {
-                client_connection->send(message);
+
+                continue;
             }
+
+            connection->send(message);
         }
     }
 
@@ -189,13 +212,13 @@ namespace rain_net {
         const auto& list {active_connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
-            const auto& client_connection = *iter;
+            const auto& connection = *iter;
 
-            assert(client_connection != nullptr);
+            assert(connection != nullptr);
 
-            if (!client_connection->is_open()) {
-                on_client_disconnected(client_connection);
-                clients.deallocate_id(client_connection->get_id());
+            if (!connection->is_open()) {
+                on_client_disconnected(connection);
+                clients.deallocate_id(connection->get_id());
                 iter = active_connections.erase_after(before_iter);
 
                 // If we erased the last element, this check is essential
@@ -252,7 +275,7 @@ namespace rain_net {
             active_connections.push_front(connection);
             connection->start_communication();
 
-            log_fn("Approved connection [" + std::to_string(id) + "]");
+            log_fn("[" + std::to_string(id) + "] Approved connection");
         } else {
             connection->close();
             clients.deallocate_id(id);  // Take back the unused ID

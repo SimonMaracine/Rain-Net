@@ -27,7 +27,7 @@ namespace rain_net {
     class Client : public internal::Errorable {
     public:
         Client() = default;
-        virtual ~Client() = default;
+        virtual ~Client();
 
         Client(const Client&) = delete;
         Client& operator=(const Client&) = delete;
