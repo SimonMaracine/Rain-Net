@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 
-option(RAIN_NET_BUILD_TESTS "Enable building tests or not" OFF)
-
 project("Rain-Net" LANGUAGES CXX)
+
+set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Variable used to control the build type")
+
+option(RAIN_NET_BUILD_TESTS "Enable building tests or not" OFF)
 
 function(set_warnings_and_standard target)
     if(UNIX)

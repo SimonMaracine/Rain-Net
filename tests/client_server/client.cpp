@@ -14,7 +14,7 @@ struct ThisClient : public rain_net::Client {
     void ping_server() {
         rain_net::Message message {MsgType::PingServer};
 
-        const auto current_time {std::chrono::system_clock::now()};
+        const auto current_time {std::chrono::steady_clock::now()};
 
         message << current_time;
 
@@ -33,13 +33,13 @@ struct ThisClient : public rain_net::Client {
 
             switch (message.id()) {
                 case MsgType::PingServer: {
-                    const auto current_time {std::chrono::system_clock::now()};
-                    std::chrono::system_clock::time_point server_time;
+                    const auto current_time {std::chrono::steady_clock::now()};
+                    std::chrono::steady_clock::time_point previous_time;
 
                     rain_net::MessageReader reader;
-                    reader(message) >> server_time;
+                    reader(message) >> previous_time;
 
-                    std::cout << "Ping: " << std::chrono::duration<double>(current_time - server_time).count() << '\n';
+                    std::cout << "Ping: " << std::chrono::duration<double>(current_time - previous_time).count() << '\n';
 
                     break;
                 }
@@ -62,25 +62,25 @@ int main() {
     ThisClient client;
     client.connect("localhost", 6001);
 
-    if (client.fail()) {
-        std::cout << client.fail_reason() << '\n';
-        client.disconnect();
-        return 1;
-    }
-
-    while (!client.is_connected()) {
-        std::cout << "Not yet connected\n";
+    do {
+        if (client.fail()) {
+            std::cout << client.fail_reason() << '\n';
+            client.disconnect();
+            return 1;
+        }
 
         if (!running) {
             client.disconnect();
             return 1;
         }
-    }
+
+        std::cout << "Not yet connected\n";
+    } while (!client.is_connected());
 
     std::cout << "Connected\n";
 
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
         client.ping_server();
         client.process_messages();
