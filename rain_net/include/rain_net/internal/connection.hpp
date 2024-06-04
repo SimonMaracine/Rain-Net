@@ -22,6 +22,9 @@
 #include "rain_net/internal/queue.hpp"
 
 namespace rain_net {
+    class Client;
+    class Server;
+
     namespace internal {
         class Connection {
         public:
@@ -35,7 +38,7 @@ namespace rain_net {
             // Close the connection asynchronously
             void close();
 
-            // Check connection status
+            // Check if the socket is open
             bool is_open() const;
         protected:
             Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
@@ -62,23 +65,25 @@ namespace rain_net {
             : Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
             log_fn(log_fn), client_id(client_id) {}
 
-        // Send the message asynchronously
+        // Send a message asynchronously
         void send(const Message& message);
 
-        void start_communication();
         std::uint32_t get_id() const;
     private:
+        void start_communication();
+        void add_to_incoming_messages();
+
         void task_write_header();
         void task_write_payload();
         void task_read_header();
         void task_read_payload();
         void task_send_message(const Message& message);
 
-        void add_to_incoming_messages();
-
         internal::SyncQueue<internal::OwnedMsg>& incoming_messages;
         const std::function<void(std::string&&)>& log_fn;
         std::uint32_t client_id {};  // Given by the server
+
+        friend class Server;
     };
 
     // Owner of this is the client
@@ -93,12 +98,13 @@ namespace rain_net {
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
             endpoints(endpoints) {}
 
-        // Send the message asynchronously
+        // Send a message asynchronously
         void send(const Message& message);
-
-        void connect();
-        bool is_connected() const;
     private:
+        void connect();
+        bool connection_established() const;
+        void add_to_incoming_messages();
+
         void task_write_header();
         void task_write_payload();
         void task_read_header();
@@ -106,10 +112,10 @@ namespace rain_net {
         void task_send_message(const Message& message);
         void task_connect_to_server();
 
-        void add_to_incoming_messages();
-
         internal::SyncQueue<Message>& incoming_messages;
         std::atomic_bool established_connection {false};
         asio::ip::tcp::resolver::results_type endpoints;
+
+        friend class Client;
     };
 }

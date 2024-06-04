@@ -39,12 +39,22 @@ namespace rain_net {
         task_send_message(message);
     }
 
+    std::uint32_t ClientConnection::get_id() const {
+        return client_id;
+    }
+
     void ClientConnection::start_communication() {
         task_read_header();
     }
 
-    std::uint32_t ClientConnection::get_id() const {
-        return client_id;
+    void ClientConnection::add_to_incoming_messages() {
+        internal::OwnedMsg message;
+        message.message = std::move(current_incoming_message);
+        message.remote = shared_from_this();
+
+        incoming_messages.push_back(std::move(message));
+
+        current_incoming_message = {};
     }
 
     void ClientConnection::task_write_header() {
@@ -179,16 +189,6 @@ namespace rain_net {
         );
     }
 
-    void ClientConnection::add_to_incoming_messages() {
-        internal::OwnedMsg message;
-        message.message = std::move(current_incoming_message);
-        message.remote = shared_from_this();
-
-        incoming_messages.push_back(std::move(message));
-
-        current_incoming_message = {};
-    }
-
     void ServerConnection::send(const Message& message) {
         task_send_message(message);
     }
@@ -197,8 +197,14 @@ namespace rain_net {
         task_connect_to_server();
     }
 
-    bool ServerConnection::is_connected() const {
+    bool ServerConnection::connection_established() const {
         return established_connection.load();
+    }
+
+    void ServerConnection::add_to_incoming_messages() {
+        incoming_messages.push_back(std::move(current_incoming_message));
+
+        current_incoming_message = {};
     }
 
     void ServerConnection::task_write_header() {
@@ -209,13 +215,13 @@ namespace rain_net {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not write header: " + ec.message());
+                    throw internal::ConnectionError("Could not write header: " + ec.message());
                 }
 
                 if (size < sizeof(internal::MsgHeader)) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not write whole header");
+                    throw internal::ConnectionError("Could not write whole header");
                 }
 
                 // Check if there is a payload to write
@@ -241,13 +247,13 @@ namespace rain_net {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not write payload: " + ec.message());
+                    throw internal::ConnectionError("Could not write payload: " + ec.message());
                 }
 
                 if (size < outgoing_messages.front().header.payload_size) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not write whole payload");
+                    throw internal::ConnectionError("Could not write whole payload");
                 }
 
                 outgoing_messages.pop_front();
@@ -266,13 +272,13 @@ namespace rain_net {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not read header: " + ec.message());
+                    throw internal::ConnectionError("Could not read header: " + ec.message());
                 }
 
                 if (size < sizeof(internal::MsgHeader)) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not read whole header");
+                    throw internal::ConnectionError("Could not read whole header");
                 }
 
                 // Check if there is a payload to read
@@ -295,13 +301,13 @@ namespace rain_net {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not read payload: " + ec.message());
+                    throw internal::ConnectionError("Could not read payload: " + ec.message());
                 }
 
                 if (size < current_incoming_message.header.payload_size) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not read whole payload");
+                    throw internal::ConnectionError("Could not read whole payload");
                 }
 
                 add_to_incoming_messages();
@@ -331,7 +337,7 @@ namespace rain_net {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw ConnectionError("Could not connect to server: " + ec.message());
+                    throw internal::ConnectionError("Could not connect to server: " + ec.message());
                 }
 
                 task_read_header();
@@ -339,11 +345,5 @@ namespace rain_net {
                 established_connection.store(true);
             }
         );
-    }
-
-    void ServerConnection::add_to_incoming_messages() {
-        incoming_messages.push_back(std::move(current_incoming_message));
-
-        current_incoming_message = {};
     }
 }

@@ -40,7 +40,7 @@ namespace rain_net {
         const auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
 
         if (ec) {
-            set_error("Could not resolve host: " + ec.message());  // TODO
+            set_error("Could not resolve host: " + ec.message());
             return;
         }
 
@@ -58,7 +58,7 @@ namespace rain_net {
                 asio_context.run();
             } catch (const std::system_error& e) {
                 set_error(e.what());
-            } catch (const ConnectionError& e) {
+            } catch (const internal::ConnectionError& e) {
                 set_error(e.what());
             }
         });
@@ -72,12 +72,12 @@ namespace rain_net {
         connection.reset();
     }
 
-    bool Client::is_connected() const {
+    bool Client::connection_established() const {
         if (connection == nullptr) {
             return false;
         }
 
-        return connection->is_connected();
+        return connection->connection_established();
     }
 
     bool Client::is_socket_open() const {

@@ -16,10 +16,12 @@ namespace rain_net {
             Errorable(Errorable&&) = delete;
             Errorable& operator=(Errorable&&) = delete;
 
+            // Check if there was an error
             bool fail() const {
                 return error.load();
             }
 
+            // Retrieve the error
             std::string_view fail_reason() const {
                 return error_message;
             }

@@ -34,21 +34,24 @@ namespace rain_net {
         Client(Client&&) = delete;
         Client& operator=(Client&&) = delete;
 
-        // Connect to the server; you should call disconnect() only after calling connect()
-        // Calling connect() then reconnects to the server
-        // on_connected is called when the connection is established; be aware of race conditions
-        // connect() returns false when the host could not be resolved
+        // Start the client's internal event loop and connect to the server
+        // You may call this only once in the beginning or after calling disconnect()
         void connect(std::string_view host, std::uint16_t port);
 
-        // Disconnect from the server
+        // Disconnect from the server and stop the internal event loop
+        // You may call this only once after connecting
+        // After a call to disconnect(), you may reconnect by calling connect() again
+        // It is automatically called in the destructor
         void disconnect();
 
-        bool is_connected() const;
+        // After a call to connect(), check if the connection has been established
+        // You may call this in a loop
+        bool connection_established() const;
 
-        // Return true if the socket is open, false otherwise
+        // Check if the socket is open
         bool is_socket_open() const;
 
-        // Send a message to the server; return false, if nothing could be sent, true otherwise
+        // Send a message to the server
         void send_message(const Message& message);
 
         // Poll the next message from the server; you usually do it in a loop until std::nullopt

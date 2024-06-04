@@ -26,7 +26,7 @@ namespace rain_net {
     }
 
     // Class representing a message, a blob of data
-    // Messages can only contain trivially copyable types like numbers, C strings and POD structs
+    // Messages can only contain trivially copyable types
     class Message final {
     public:
         explicit Message(std::uint16_t id);
@@ -38,7 +38,10 @@ namespace rain_net {
 
         ~Message() noexcept;
 
+        // Get the size of the message, including header abd payload
         std::size_t size() const;
+
+        // Get the message ID
         std::uint16_t id() const;
 
         // Write data to the message
@@ -69,9 +72,10 @@ namespace rain_net {
         friend class MessageReader;
     };
 
+    // Class used for reading messages
     class MessageReader final {
     public:
-        // Read data from the message; must be done in reverse
+        // Read data from the message; must be done in reverse order
         template<typename T>
         MessageReader& operator>>(T& data) {
             static_assert(std::is_trivially_copyable_v<T>);
@@ -85,6 +89,7 @@ namespace rain_net {
             return *this;
         }
 
+        // Start reading the contents of a message
         MessageReader& operator()(const Message& message);
     private:
         std::size_t pointer {};

@@ -73,7 +73,7 @@ int main() {
         }
 
         std::cout << "Not yet connected\n";
-    } while (!client.is_connected());
+    } while (!client.connection_established());
 
     std::cout << "Connected\n";
 

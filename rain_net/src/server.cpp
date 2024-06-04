@@ -32,7 +32,7 @@ namespace rain_net {
 
             return search_and_allocate_id(0, id_pointer);
 
-            // Returns ID or null, if really nothing found
+            // Return ID or null, if really nothing found
         }
 
         void PoolClients::deallocate_id(std::uint32_t id) {
@@ -96,7 +96,7 @@ namespace rain_net {
                 log_fn("Unexpected error: " + std::string(e.what()));
 
                 set_error(e.what());
-            } catch (const ConnectionError& e) {
+            } catch (const internal::ConnectionError& e) {
                 log_fn("Unexpected error: " + std::string(e.what()));
 
                 set_error(e.what());

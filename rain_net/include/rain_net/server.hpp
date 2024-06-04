@@ -55,12 +55,13 @@ namespace rain_net {
     // Base class for the server program
     class Server : public internal::Errorable {
     public:
-        // Basically infinity
+        // Empty log procedure
         static constexpr auto NO_LOG {[](std::string&&) {}};
-        static constexpr std::uint32_t MAX_MSG {std::numeric_limits<std::uint32_t>::max()};
+
+        // Default capacity of clients
         static constexpr std::uint32_t MAX_CLIENTS {std::numeric_limits<std::uint16_t>::max()};
 
-        // The port number is specified at creation time
+        // Specify port number on which to listen and log procedure
         Server(std::uint16_t port, std::function<void(std::string&&)> log_fn = NO_LOG)
             : acceptor(asio_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), log_fn(std::move(log_fn)) {}
 
@@ -71,31 +72,40 @@ namespace rain_net {
         Server(Server&&) = delete;
         Server& operator=(Server&&) = delete;
 
-        // Start, stop the server; you should call stop() only after calling start()
-        // Calling start() then restarts the server
-        // Here you can specify the maximum amount of connected clients allowed
+        // Start the internal event loop and start accepting connection requests
+        // You may call this only once in the beginning or after calling stop()
         void start(std::uint32_t max_clients = MAX_CLIENTS);
+
+        // Disconnect from all the clients and stop the internal event loop
+        // You may call this only once after starting
+        // After a call to stop(), you may restart by calling start() again
+        // It is automatically called in the destructor
         void stop();
 
+        // Poll the next message from the clients; you usually do it in a loop until std::nullopt
         std::optional<std::pair<std::shared_ptr<ClientConnection>, Message>> next_incoming_message();
 
+        // Check if there are available incoming messages without polling them
         bool available() const;  // TODO
     protected:
         // Called when a new client tries to connect; return false to reject the client, true otherwise
+        // Called from the server's thread; be aware of race conditions  // FIXME
         virtual bool on_client_connected(std::shared_ptr<ClientConnection> connection) = 0;
 
         // Called when a client disconnection is detected
+        // Called from the main thread
         virtual void on_client_disconnected(std::shared_ptr<ClientConnection> connection) = 0;
 
-        // Send message to a specific client; return false, if nothing could be sent, true otherwise
+        // Send a message to a specific client
         void send_message(std::shared_ptr<ClientConnection> connection, const Message& message);
 
+        // Senf a message to all clients
         void send_message_broadcast(const Message& message);
 
-        // Send a message to everyone except a specific client
+        // Send a message to all clients except a specific client
         void send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception);
 
-        // Routine to check all connections to see if they are valid
+        // Check all connections to see if they are valid; invokes on_client_disconnected() when needed
         void check_connections();
 
         // Don't touch these unless you really know what you're doing
