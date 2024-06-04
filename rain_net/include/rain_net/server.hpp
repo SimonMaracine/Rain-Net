@@ -77,24 +77,18 @@ namespace rain_net {
         void start(std::uint32_t max_clients = MAX_CLIENTS);
         void stop();
 
-        // Call this in a loop to continuously receive messages
-        // You can specify a maximum amount of processed messages before returning
-        // Set wait to false, to not put the CPU to sleep when there is no work to do
-        void update(std::uint32_t max_messages = MAX_MSG);
+        std::optional<std::pair<std::shared_ptr<ClientConnection>, Message>> next_incoming_message();
 
         bool available() const;  // TODO
     protected:
         // Called when a new client tries to connect; return false to reject the client, true otherwise
-        virtual bool on_client_connected(std::shared_ptr<ClientConnection> client_connection) = 0;
+        virtual bool on_client_connected(std::shared_ptr<ClientConnection> connection) = 0;
 
         // Called when a client disconnection is detected
-        virtual void on_client_disconnected(std::shared_ptr<ClientConnection> client_connection) = 0;
-
-        // Called for every message received from every client
-        virtual void on_message_received(std::shared_ptr<ClientConnection> client_connection, const Message& message) = 0;
+        virtual void on_client_disconnected(std::shared_ptr<ClientConnection> connection) = 0;
 
         // Send message to a specific client; return false, if nothing could be sent, true otherwise
-        void send_message(std::shared_ptr<ClientConnection> client_connection, const Message& message);
+        void send_message(std::shared_ptr<ClientConnection> connection, const Message& message);
 
         void send_message_broadcast(const Message& message);
 

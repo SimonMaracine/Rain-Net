@@ -69,7 +69,9 @@ namespace rain_net {
 
         running = false;
 
-        acceptor.cancel();
+        if (acceptor.is_open()) {
+            acceptor.close();
+        }
 
         if (context_thread.joinable()) {
             context_thread.join();
@@ -113,7 +115,7 @@ namespace rain_net {
 
         running = false;
 
-        acceptor.cancel();
+        acceptor.close();
         context_thread.join();
 
         for (auto& connection : active_connections) {
@@ -123,18 +125,16 @@ namespace rain_net {
         log_fn("Server stopped");
     }
 
-    void Server::update(std::uint32_t max_messages) {
-        std::uint32_t messages_processed {0};
-
-        while (!incoming_messages.empty() && messages_processed < max_messages) {
-            const auto owned_msg {incoming_messages.pop_front()};
-
-            assert(owned_msg.remote != nullptr);
-
-            on_message_received(owned_msg.remote, owned_msg.message);
-
-            messages_processed++;
+    std::optional<std::pair<std::shared_ptr<ClientConnection>, Message>> Server::next_incoming_message() {
+        if (incoming_messages.empty()) {
+            return std::nullopt;
         }
+
+        const auto owned_msg {incoming_messages.pop_front()};
+
+        assert(owned_msg.remote != nullptr);
+
+        return std::make_optional(std::make_pair(owned_msg.remote, owned_msg.message));
     }
 
     bool Server::available() const {
@@ -234,10 +234,6 @@ namespace rain_net {
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                 if (ec) {
                     log_fn("Could not accept new connection: " + ec.message());
-
-                    if (!running) {
-                        return;
-                    }
                 } else {
                     log_fn(
                         "Accepted new connection: " +
@@ -255,6 +251,10 @@ namespace rain_net {
                     } else {
                         create_new_connection(std::move(socket), *new_id);
                     }
+                }
+
+                if (!running) {
+                    return;
                 }
 
                 task_accept_connection();
