@@ -47,15 +47,12 @@ namespace rain_net {
         // After a call to connect(), check if the connection has been established
         // You may call this in a loop
         bool connection_established() const;
-
-        // Check if the socket is open
-        bool is_socket_open() const;
+    protected:
+        // Poll the next message from the server; you usually do it in a loop until std::nullopt
+        std::optional<Message> next_incoming_message();
 
         // Send a message to the server
         void send_message(const Message& message);
-
-        // Poll the next message from the server; you usually do it in a loop until std::nullopt
-        std::optional<Message> next_incoming_message();
 
         // Don't touch these unless you really know what you're doing
         internal::SyncQueue<Message> incoming_messages;

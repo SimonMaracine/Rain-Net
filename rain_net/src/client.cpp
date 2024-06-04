@@ -34,13 +34,14 @@ namespace rain_net {
             asio_context.restart();
         }
 
-        asio::error_code ec;
-
         asio::ip::tcp::resolver resolver {asio_context};
-        const auto endpoints {resolver.resolve(host, std::to_string(port), ec)};
 
-        if (ec) {
-            set_error("Could not resolve host: " + ec.message());
+        asio::ip::tcp::resolver::results_type endpoints;
+
+        try {
+            endpoints = resolver.resolve(host, std::to_string(port));
+        } catch (const std::system_error& e) {
+            set_error(e.what());
             return;
         }
 
@@ -80,25 +81,17 @@ namespace rain_net {
         return connection->connection_established();
     }
 
-    bool Client::is_socket_open() const {
-        if (connection == nullptr) {
-            return false;
-        }
-
-        return connection->is_open();
-    }
-
-    void Client::send_message(const Message& message) {
-        assert(connection != nullptr);
-
-        connection->send(message);
-    }
-
     std::optional<Message> Client::next_incoming_message() {
         if (incoming_messages.empty()) {
             return std::nullopt;
         }
 
         return std::make_optional(incoming_messages.pop_front());
+    }
+
+    void Client::send_message(const Message& message) {
+        assert(connection != nullptr);
+
+        connection->send(message);
     }
 }

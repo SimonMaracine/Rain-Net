@@ -34,13 +34,13 @@ namespace rain_net {
             Connection& operator=(const Connection&) = delete;
             Connection(Connection&&) = delete;
             Connection& operator=(Connection&&) = delete;
-
+        protected:
             // Close the connection asynchronously
             void close();
 
             // Check if the socket is open
             bool is_open() const;
-        protected:
+
             Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
                 : asio_context(asio_context), tcp_socket(std::move(tcp_socket)) {}
 

@@ -14,8 +14,8 @@ static void log(const std::string& message) {
 }
 
 struct ThisServer : public rain_net::Server {
-    explicit ThisServer(std::uint16_t port)
-        : rain_net::Server(port, log) {}
+    ThisServer()
+        : rain_net::Server(log) {}
 
     bool on_client_connected(std::shared_ptr<rain_net::ClientConnection>) override {
         return true;
@@ -59,10 +59,15 @@ int main() {
         std::abort();
     }
 
-    ThisServer server {6001};
-    server.start();
+    ThisServer server;
+    server.start(6001);
+
+    if (server.fail()) {
+        return 1;
+    }
 
     while (running) {
+        server.accept_connections();
         server.process_messages();
 
         if (server.fail()) {
