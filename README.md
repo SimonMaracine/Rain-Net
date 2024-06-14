@@ -29,4 +29,4 @@ To build the tests, set this variable before `add_subdirectory(...)`:
 set(RAIN_NET_BUILD_TESTS ON)
 ```
 
-Development happens on the dev branch.
+Development takes place on the dev branch.
