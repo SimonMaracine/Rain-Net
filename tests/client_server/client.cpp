@@ -71,8 +71,6 @@ int main() {
         if (!running) {
             return 0;
         }
-
-        std::cout << "Not yet connected\n";
     } while (!client.connection_established());
 
     std::cout << "Connected\n";
