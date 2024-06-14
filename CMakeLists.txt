@@ -5,6 +5,7 @@ project("Rain-Net" LANGUAGES CXX)
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Variable used to control the build type")
 
 option(RAIN_NET_BUILD_TESTS "Enable building tests or not" OFF)
+option(RAIN_NET_ASAN "Turn this on to enable sanitizers in tests" OFF)
 
 function(set_warnings_and_standard target)
     if(UNIX)
@@ -28,3 +29,4 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 message(STATUS "Rain-Net: Building tests: ${RAIN_NET_BUILD_TESTS}")
+message(STATUS "Rain-Net: Sanitizers: ${RAIN_NET_ASAN}")

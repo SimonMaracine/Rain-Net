@@ -8,3 +8,11 @@ target_link_libraries(server PRIVATE rain_net)
 
 set_warnings_and_standard(client)
 set_warnings_and_standard(server)
+
+if(UNIX AND RAIN_NET_ASAN)
+    target_compile_options(client PRIVATE "-fsanitize=address" "-fsanitize=undefined" "-g" "-fno-omit-frame-pointer")
+    target_link_options(client PRIVATE "-fsanitize=address" "-fsanitize=undefined")
+
+    target_compile_options(server PRIVATE "-fsanitize=address" "-fsanitize=undefined" "-g" "-fno-omit-frame-pointer")
+    target_link_options(server PRIVATE "-fsanitize=address" "-fsanitize=undefined")
+endif()
