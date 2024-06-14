@@ -24,7 +24,10 @@ target_link_libraries(rain_net PUBLIC asio)
 
 set_warnings_and_standard(rain_net)
 
-target_compile_definitions(rain_net PUBLIC "ASIO_NO_DEPRECATED")
+target_compile_definitions(rain_net PUBLIC
+    "ASIO_NO_DEPRECATED"
+    "_WIN32_WINNT=0x0601"
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_definitions(rain_net PRIVATE "NDEBUG")

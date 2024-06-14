@@ -18,9 +18,9 @@
 
 namespace rain_net {
     namespace internal {
-        void PoolClients::create_pool(std::uint32_t size) {
-            pool = std::make_unique<bool[]>(size);
-            this->size = size;
+        void PoolClients::create_pool(std::uint32_t pool_size) {
+            pool = std::make_unique<bool[]>(pool_size);
+            size = pool_size;
             id_pointer = 0;
         }
 
