@@ -26,7 +26,11 @@ namespace rain_net {
     namespace internal {
         void Connection::close() {
             asio::post(asio_context, [this]() {
-                tcp_socket.close();  // FIXME throws exception
+                if (!tcp_socket.is_open()) {
+                    return;
+                }
+
+                tcp_socket.close();
             });
         }
 

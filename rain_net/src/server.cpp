@@ -106,9 +106,13 @@ namespace rain_net {
     }
 
     void Server::stop() {
-        for (const auto& connection : connections) {
-            if (connection != nullptr) {
-                connection->close();
+        // Don't prime the context, if it has been stopped,
+        // because it will do the work after restart and meaning use after free
+        if (!asio_context.stopped()) {
+            for (const auto& connection : connections) {
+                if (connection != nullptr) {
+                    connection->close();
+                }
             }
         }
 
