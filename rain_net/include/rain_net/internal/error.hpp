@@ -5,7 +5,7 @@
 
 namespace rain_net {
     namespace internal {
-        struct ConnectionError : public std::runtime_error  {
+        struct ConnectionError : public std::runtime_error {
             explicit ConnectionError(const std::string& message)
                 : std::runtime_error(message) {}
 

@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
 add_library(asio INTERFACE)
-
 target_include_directories(asio INTERFACE "dependencies/asio-1.28.0/include")
 
 add_library(rain_net

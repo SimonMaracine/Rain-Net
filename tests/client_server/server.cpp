@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cstdint>
-#include <cstdlib>
 #include <csignal>
 
 #include <rain_net/server.hpp>
@@ -9,7 +8,7 @@ enum MsgType : std::uint16_t {
     PingServer
 };
 
-static void log(const std::string& message) {
+static void log(std::string&& message) {
     std::cerr << message << '\n';
 }
 
@@ -56,7 +55,7 @@ int main() {
     };
 
     if (std::signal(SIGINT, handler) == SIG_ERR) {
-        std::abort();
+        return 1;
     }
 
     ThisServer server;
@@ -71,9 +70,11 @@ int main() {
         server.process_messages();
 
         if (server.fail()) {
-            break;
+            return 1;
         }
     }
 
     server.stop();
+
+    return 0;
 }

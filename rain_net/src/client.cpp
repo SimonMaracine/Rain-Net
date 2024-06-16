@@ -20,13 +20,7 @@
 
 namespace rain_net {
     Client::~Client() {
-        if (connection != nullptr) {
-            connection->close();
-        }
-
-        if (context_thread.joinable()) {
-            context_thread.join();
-        }
+        disconnect();
     }
 
     void Client::connect(std::string_view host, std::uint16_t port) {
@@ -66,11 +60,17 @@ namespace rain_net {
     }
 
     void Client::disconnect() {
-        assert(connection != nullptr);
+        if (connection != nullptr) {
+            connection->close();
+        }
 
-        connection->close();
-        context_thread.join();
+        if (context_thread.joinable()) {
+            context_thread.join();
+        }
+
         connection.reset();
+
+        clear_error();
     }
 
     bool Client::connection_established() const {

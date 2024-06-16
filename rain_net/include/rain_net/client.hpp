@@ -39,8 +39,9 @@ namespace rain_net {
         void connect(std::string_view host, std::uint16_t port);
 
         // Disconnect from the server and stop the internal event loop
-        // You may call this only once after connecting
+        // You may call this at any time
         // After a call to disconnect(), you may reconnect by calling connect() again
+        // Clears the error flag
         // It is automatically called in the destructor
         void disconnect();
 

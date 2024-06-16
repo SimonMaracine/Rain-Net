@@ -63,21 +63,7 @@ namespace rain_net {
     }
 
     Server::~Server() {
-        for (const auto& connection : connections) {
-            if (connection != nullptr) {
-                connection->close();
-            }
-        }
-
-        running = false;
-
-        if (acceptor.is_open()) {
-            acceptor.close();
-        }
-
-        if (context_thread.joinable()) {
-            context_thread.join();
-        }
+        stop();
     }
 
     void Server::start(std::uint16_t port, std::uint32_t max_clients) {
@@ -116,26 +102,33 @@ namespace rain_net {
             }
         });
 
-        log_fn("Server started on " + std::to_string(port) + " (max " + std::to_string(max_clients) + " clients)");
+        log_fn("Server started (port " + std::to_string(port) + ", max " + std::to_string(max_clients) + " clients)");
     }
 
     void Server::stop() {
         for (const auto& connection : connections) {
-            assert(connection != nullptr);
-
-            connection->close();
+            if (connection != nullptr) {
+                connection->close();
+            }
         }
 
         running = false;
 
-        acceptor.close();
-        context_thread.join();
+        if (acceptor.is_open()) {
+            acceptor.close();
+        }
+
+        if (context_thread.joinable()) {
+            context_thread.join();
+        }
 
         for (auto& connection : connections) {
             connection.reset();
         }
 
-        log_fn("Server stopped");
+        connections.clear();
+
+        clear_error();
     }
 
     bool Server::available() const {

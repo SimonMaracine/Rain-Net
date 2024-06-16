@@ -20,7 +20,7 @@ function(set_warnings_and_standard target)
     set_target_properties(${target} PROPERTIES CXX_EXTENSIONS OFF)
 endfunction()
 
-add_subdirectory("rain_net")
+add_subdirectory(rain_net)
 
 if(RAIN_NET_BUILD_TESTS)
     add_subdirectory(tests)

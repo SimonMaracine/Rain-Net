@@ -55,10 +55,10 @@ int main() {
     std::thread context_thread {[&context]() { context.run(); }};
 
     // asio::ip::tcp::resolver resolver {context};
-    // resolver.resolve("https://simonmaracine.github.io/", "80");
+    // resolver.resolve("https://google.com", "80");
 
     // Create an endpoint to connect to
-    asio::ip::tcp::endpoint endpoint {asio::ip::make_address("51.38.81.49", ec), 80};  // My website 185.199.108.153
+    asio::ip::tcp::endpoint endpoint {asio::ip::make_address("51.38.81.49", ec), 80};
 
     check_error(ec);
 
@@ -75,7 +75,7 @@ int main() {
     // Try to write to the socket
     std::string request {
         "GET /index.html HTTP/1.1\r\n"
-        "Host: simonmaracine.github.io\r\n"
+        "Host: google.com\r\n"
         "Connection: close\r\n\r\n"
     };
     socket.write_some(asio::buffer(request.data(), request.size()), ec);

@@ -77,12 +77,13 @@ namespace rain_net {
 
         // Start the internal event loop and start accepting connection requests
         // You may call this only once in the beginning or after calling stop()
-        // Specify the port number on which to listen
+        // Specify the port number on which to listen and the maximum amount of clients allowed
         void start(std::uint16_t port, std::uint32_t max_clients = MAX_CLIENTS);
 
         // Disconnect from all the clients and stop the internal event loop
-        // You may call this only once after starting
+        // You may call this at any time
         // After a call to stop(), you may restart by calling start() again
+        // Clears the error flag
         // It is automatically called in the destructor
         void stop();
 

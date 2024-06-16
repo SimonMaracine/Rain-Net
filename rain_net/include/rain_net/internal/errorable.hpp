@@ -37,6 +37,11 @@ namespace rain_net {
                 error_message = std::move(message);
                 error.store(true);
             }
+
+            void clear_error() {
+                error_message.clear();
+                error.store(false);
+            }
         private:
             std::atomic_bool error {false};
             std::string error_message;

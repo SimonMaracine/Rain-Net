@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cstdint>
-#include <cstdlib>
 #include <csignal>
 #include <chrono>
 
@@ -56,13 +55,18 @@ int main() {
     };
 
     if (std::signal(SIGINT, handler) == SIG_ERR) {
-        std::abort();
+        return 1;
     }
 
     ThisClient client;
     client.connect("localhost", 6001);
 
-    do {
+    if (client.fail()) {
+        std::cout << client.fail_reason() << '\n';
+        return 1;
+    }
+
+    while (!client.connection_established()) {
         if (client.fail()) {
             std::cout << client.fail_reason() << '\n';
             return 1;
@@ -71,12 +75,12 @@ int main() {
         if (!running) {
             return 0;
         }
-    } while (!client.connection_established());
+    }
 
     std::cout << "Connected\n";
 
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
 
         client.ping_server();
         client.process_messages();
@@ -88,4 +92,6 @@ int main() {
     }
 
     client.disconnect();
+
+    return 0;
 }
