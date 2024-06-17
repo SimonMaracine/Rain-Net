@@ -27,13 +27,6 @@ namespace rain_net {
 
     namespace internal {
         class Connection {
-        public:
-            ~Connection() = default;
-
-            Connection(const Connection&) = delete;
-            Connection& operator=(const Connection&) = delete;
-            Connection(Connection&&) = delete;
-            Connection& operator=(Connection&&) = delete;
         protected:
             // Close the connection asynchronously
             void close();
@@ -43,6 +36,13 @@ namespace rain_net {
 
             Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
                 : asio_context(asio_context), tcp_socket(std::move(tcp_socket)) {}
+
+            ~Connection() = default;
+
+            Connection(const Connection&) = delete;
+            Connection& operator=(const Connection&) = delete;
+            Connection(Connection&&) = delete;
+            Connection& operator=(Connection&&) = delete;
 
             asio::io_context& asio_context;
             asio::ip::tcp::socket tcp_socket;

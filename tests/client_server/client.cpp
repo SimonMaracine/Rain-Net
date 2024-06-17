@@ -14,7 +14,6 @@ struct ThisClient : public rain_net::Client {
         rain_net::Message message {MsgType::PingServer};
 
         const auto current_time {std::chrono::steady_clock::now()};
-
         message << current_time;
 
         send_message(message);
@@ -24,7 +23,7 @@ struct ThisClient : public rain_net::Client {
         while (true) {
             const auto result {next_incoming_message()};
 
-            if (!result.has_value()) {
+            if (!result) {
                 break;
             }
 

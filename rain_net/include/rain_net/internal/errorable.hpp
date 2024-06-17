@@ -9,13 +9,6 @@ namespace rain_net {
     namespace internal {
         class Errorable {
         public:
-            ~Errorable() = default;
-
-            Errorable(const Errorable&) = delete;
-            Errorable& operator=(const Errorable&) = delete;
-            Errorable(Errorable&&) = delete;
-            Errorable& operator=(Errorable&&) = delete;
-
             // Check if there was an error
             bool fail() const {
                 return error.load();
@@ -27,6 +20,12 @@ namespace rain_net {
             }
         protected:
             Errorable() = default;
+            ~Errorable() = default;
+
+            Errorable(const Errorable&) = delete;
+            Errorable& operator=(const Errorable&) = delete;
+            Errorable(Errorable&&) = delete;
+            Errorable& operator=(Errorable&&) = delete;
 
             void set_error(const std::string& message) {
                 error_message = message;
@@ -43,8 +42,8 @@ namespace rain_net {
                 error.store(false);
             }
         private:
-            std::atomic_bool error {false};
             std::string error_message;
+            std::atomic_bool error {false};
         };
     }
 }
