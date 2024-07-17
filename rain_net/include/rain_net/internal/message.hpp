@@ -29,7 +29,7 @@ namespace rain_net {
     // Messages can only contain trivially copyable types
     class Message final {
     public:
-        explicit Message(std::uint16_t id);
+        explicit Message(std::uint16_t id) noexcept;
 
         Message(const Message& other);
         Message& operator=(const Message& other);
@@ -39,10 +39,10 @@ namespace rain_net {
         ~Message() noexcept;
 
         // Get the size of the message, including header abd payload
-        std::size_t size() const;
+        std::size_t size() const noexcept;
 
         // Get the message ID
-        std::uint16_t id() const;
+        std::uint16_t id() const noexcept;
 
         // Write data to the message
         template<typename T>
@@ -58,10 +58,10 @@ namespace rain_net {
             return *this;
         }
     private:
-        Message() = default;
+        Message() noexcept = default;
 
         void resize(std::size_t additional_size);
-        void allocate(std::size_t size);
+        void allocate(std::size_t size);  // Used externally
 
         internal::MsgHeader header;
         unsigned char* payload {nullptr};
@@ -90,7 +90,7 @@ namespace rain_net {
         }
 
         // Start reading the contents of a message
-        MessageReader& operator()(const Message& message);
+        MessageReader& operator()(const Message& message) noexcept;
     private:
         std::size_t pointer {};
         const Message* msg {nullptr};

@@ -27,7 +27,7 @@ namespace rain_net {
 
     namespace internal {
         class Connection {
-        public:
+        protected:
             ~Connection() = default;
 
             Connection(const Connection&) = delete;
@@ -68,7 +68,7 @@ namespace rain_net {
         // Send a message asynchronously
         void send(const Message& message);
 
-        std::uint32_t get_id() const;
+        std::uint32_t get_id() const noexcept;
     private:
         void start_communication();
         void add_to_incoming_messages();
@@ -102,7 +102,7 @@ namespace rain_net {
         void send(const Message& message);
     private:
         void connect();
-        bool connection_established() const;
+        bool connection_established() const noexcept;
         void add_to_incoming_messages();
 
         void task_write_header();

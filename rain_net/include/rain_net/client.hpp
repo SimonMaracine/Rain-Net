@@ -47,7 +47,7 @@ namespace rain_net {
 
         // After a call to connect(), check if the connection has been established
         // You may call this in a loop
-        bool connection_established() const;
+        bool connection_established() const noexcept;
     protected:
         // Poll the next message from the server; you usually do it in a loop until std::nullopt
         std::optional<Message> next_incoming_message();

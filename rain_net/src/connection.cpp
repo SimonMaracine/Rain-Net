@@ -43,7 +43,7 @@ namespace rain_net {
         task_send_message(message);
     }
 
-    std::uint32_t ClientConnection::get_id() const {
+    std::uint32_t ClientConnection::get_id() const noexcept {
         return client_id;
     }
 
@@ -73,7 +73,7 @@ namespace rain_net {
                     return;
                 }
 
-                if (size < sizeof(internal::MsgHeader)) {
+                if (size < sizeof(internal::MsgHeader)) {  // FIXME this must be handled correctly
                     log_fn("[" + std::to_string(get_id()) + "] Could not write whole header");
 
                     tcp_socket.close();
@@ -201,7 +201,7 @@ namespace rain_net {
         task_connect_to_server();
     }
 
-    bool ServerConnection::connection_established() const {
+    bool ServerConnection::connection_established() const noexcept {
         return established_connection.load();
     }
 

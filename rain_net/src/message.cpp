@@ -3,7 +3,7 @@
 #include <utility>
 
 namespace rain_net {
-    Message::Message(std::uint16_t id) {
+    Message::Message(std::uint16_t id) noexcept {
         header.id = id;
     }
 
@@ -45,11 +45,11 @@ namespace rain_net {
         delete[] payload;
     }
 
-    std::size_t Message::size() const {
+    std::size_t Message::size() const noexcept {
         return sizeof(internal::MsgHeader) + header.payload_size;
     }
 
-    std::uint16_t Message::id() const {
+    std::uint16_t Message::id() const noexcept {
         return header.id;
     }
 
@@ -73,7 +73,7 @@ namespace rain_net {
         payload = new unsigned char[size];
     }
 
-    MessageReader& MessageReader::operator()(const Message& message) {
+    MessageReader& MessageReader::operator()(const Message& message) noexcept {
         msg = &message;
         pointer = message.header.payload_size;
 

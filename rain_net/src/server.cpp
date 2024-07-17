@@ -48,7 +48,7 @@ namespace rain_net {
             pool[id] = false;
         }
 
-        std::optional<std::uint32_t> PoolClients::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) {
+        std::optional<std::uint32_t> PoolClients::search_and_allocate_id(std::uint32_t begin, std::uint32_t end) noexcept {
             for (std::uint32_t id {begin}; id < end; id++) {
                 if (!pool[id]) {
                     pool[id] = true;

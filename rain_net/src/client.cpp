@@ -77,7 +77,7 @@ namespace rain_net {
         clear_error();
     }
 
-    bool Client::connection_established() const {
+    bool Client::connection_established() const noexcept {
         if (connection == nullptr) {
             return false;
         }
