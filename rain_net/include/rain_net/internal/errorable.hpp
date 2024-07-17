@@ -41,8 +41,8 @@ namespace rain_net {
                 error.store(false);
             }
         private:
-            std::atomic_bool error {false};
             std::string error_message;
+            std::atomic_bool error {false};
         };
     }
 }

@@ -29,4 +29,4 @@ To build the tests, set this variable before `add_subdirectory(...)`:
 set(RAIN_NET_BUILD_TESTS ON)
 ```
 
-Development takes place on the `dev` and `main` branches. The `stable` branch is for actual use.
+Development takes place on the `main` branch. The `stable` branch is for actual use.
