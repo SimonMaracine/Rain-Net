@@ -21,6 +21,7 @@
 #endif
 
 #include "rain_net/internal/error.hpp"
+#include "rain_net/conversion.hpp"  // TODO
 
 namespace rain_net {
     namespace internal {

@@ -9,6 +9,7 @@ add_library(rain_net
     "include/rain_net/internal/message.hpp"
     "include/rain_net/internal/queue.hpp"
     "include/rain_net/client.hpp"
+    "include/rain_net/conversion.hpp"
     "include/rain_net/server.hpp"
     "include/rain_net/version.hpp"
     "src/client.cpp"

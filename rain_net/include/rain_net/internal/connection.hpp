@@ -28,10 +28,7 @@ namespace rain_net {
     namespace internal {
         class Connection {
         protected:
-            // Close the connection asynchronously
             void close();
-
-            // Check if the socket is open
             bool is_open() const;
 
             Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
