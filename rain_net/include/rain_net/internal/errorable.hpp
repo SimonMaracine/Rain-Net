@@ -27,7 +27,7 @@ namespace rain_net {
             Errorable(Errorable&&) = delete;
             Errorable& operator=(Errorable&&) = delete;
 
-            void set_error(const std::string& message) noexcept {
+            void set_error(const std::string& message) {
                 set_error(std::string(message));
             }
 

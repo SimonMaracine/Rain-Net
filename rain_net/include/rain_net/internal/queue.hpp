@@ -10,7 +10,7 @@ namespace rain_net {
         template<typename T>
         class SyncQueue {
         public:
-            SyncQueue() noexcept = default;
+            SyncQueue() = default;
             ~SyncQueue() = default;
 
             SyncQueue(const SyncQueue&) = delete;

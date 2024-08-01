@@ -77,7 +77,7 @@ namespace rain_net {
     public:
         // Read data from the message; must be done in reverse order
         template<typename T>
-        MessageReader& operator>>(T& data) {
+        MessageReader& operator>>(T& data) noexcept {
             static_assert(std::is_trivially_copyable_v<T>);
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
