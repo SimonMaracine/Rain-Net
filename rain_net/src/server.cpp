@@ -77,7 +77,6 @@ namespace rain_net {
 
         try {
             acceptor.open(endpoint.protocol());
-            acceptor.set_option(asio::socket_base::reuse_address(true));
             acceptor.bind(endpoint);
             acceptor.listen();
         } catch (const std::system_error& e) {
