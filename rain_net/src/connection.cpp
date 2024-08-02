@@ -24,6 +24,17 @@
 #include "rain_net/conversion.hpp"  // TODO
 
 namespace rain_net {
+    template<typename T>
+    std::size_t buffers_size(const T& buffers) {
+        std::size_t size {0};
+
+        for (const auto& buffer : buffers) {
+            size += buffer.size();
+        }
+
+        return size;
+    }
+
     namespace internal {
         void Connection::close() {
             asio::post(asio_context, [this]() {
@@ -62,64 +73,34 @@ namespace rain_net {
         current_incoming_message = {};
     }
 
-    void ClientConnection::task_write_header() {
+    void ClientConnection::task_write_message() {
         assert(!outgoing_messages.empty());
 
-        asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader)),
-            [this](asio::error_code ec, std::size_t size) {
+        std::vector<asio::const_buffer> buffers;
+        buffers.emplace_back(&outgoing_messages.front().header, sizeof(internal::MsgHeader));
+
+        if (outgoing_messages.front().header.payload_size > 0) {
+            buffers.emplace_back(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size);
+        }
+
+        const std::size_t size {buffers_size(buffers)};
+
+        asio::async_write(tcp_socket, buffers,
+            [this, size](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
-                    log_fn("[" + std::to_string(get_id()) + "] Could not write header: " + ec.message());
-
                     tcp_socket.close();
+
+                    log_fn("[" + std::to_string(get_id()) + "] Could not write message: " + ec.message());
                     return;
                 }
 
-                if (size < sizeof(internal::MsgHeader)) {  // FIXME this must be handled correctly
-                    log_fn("[" + std::to_string(get_id()) + "] Could not write whole header");
-
-                    tcp_socket.close();
-                    return;
-                }
-
-                // Check if there is a payload to write
-                if (outgoing_messages.front().header.payload_size > 0) {
-                    task_write_payload();
-                } else {
-                    outgoing_messages.pop_front();
-
-                    // Thus writing tasks can stop
-                    if (!outgoing_messages.empty()) {
-                        task_write_header();
-                    }
-                }
-            }
-        );
-    }
-
-    void ClientConnection::task_write_payload() {
-        assert(!outgoing_messages.empty());
-
-        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size),
-            [this](asio::error_code ec, std::size_t size) {
-                if (ec) {
-                    log_fn("[" + std::to_string(get_id()) + "] Could not write payload: " + ec.message());
-
-                    tcp_socket.close();
-                    return;
-                }
-
-                if (size < outgoing_messages.front().header.payload_size) {
-                    log_fn("[" + std::to_string(get_id()) + "] Could not write whole payload");
-
-                    tcp_socket.close();
-                    return;
-                }
+                assert(bytes_transferred == size);
 
                 outgoing_messages.pop_front();
 
                 // Thus writing tasks can stop
                 if (!outgoing_messages.empty()) {
-                    task_write_header();
+                    task_write_message();
                 }
             }
         );
@@ -127,20 +108,15 @@ namespace rain_net {
 
     void ClientConnection::task_read_header() {
         asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader)),
-            [this](asio::error_code ec, std::size_t size) {
+            [this](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
+                    tcp_socket.close();
+
                     log_fn("[" + std::to_string(get_id()) + "] Could not read header: " + ec.message());
-
-                    tcp_socket.close();
                     return;
                 }
 
-                if (size < sizeof(internal::MsgHeader)) {
-                    log_fn("[" + std::to_string(get_id()) + "] Could not read whole header");
-
-                    tcp_socket.close();
-                    return;
-                }
+                assert(bytes_transferred == sizeof(internal::MsgHeader));
 
                 // Check if there is a payload to read
                 if (current_incoming_message.header.payload_size > 0) {
@@ -158,20 +134,15 @@ namespace rain_net {
 
     void ClientConnection::task_read_payload() {
         asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload, current_incoming_message.header.payload_size),
-            [this](asio::error_code ec, std::size_t size) {
+            [this](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
+                    tcp_socket.close();
+
                     log_fn("[" + std::to_string(get_id()) + "] Could not read payload: " + ec.message());
-
-                    tcp_socket.close();
                     return;
                 }
 
-                if (size < current_incoming_message.header.payload_size) {
-                    log_fn("[" + std::to_string(get_id()) + "] Could not read whole payload");
-
-                    tcp_socket.close();
-                    return;
-                }
+                assert(bytes_transferred == current_incoming_message.header.payload_size);
 
                 add_to_incoming_messages();
                 task_read_header();
@@ -188,7 +159,7 @@ namespace rain_net {
 
                 // Restart the writing process, if it has stopped before
                 if (writing_tasks_stopped) {
-                    task_write_header();
+                    task_write_message();
                 }
             }
         );
@@ -212,60 +183,33 @@ namespace rain_net {
         current_incoming_message = {};
     }
 
-    void ServerConnection::task_write_header() {
+    void ServerConnection::task_write_message() {
         assert(!outgoing_messages.empty());
 
-        asio::async_write(tcp_socket, asio::buffer(&outgoing_messages.front().header, sizeof(internal::MsgHeader)),
-            [this](asio::error_code ec, std::size_t size) {
+        std::vector<asio::const_buffer> buffers;
+        buffers.emplace_back(&outgoing_messages.front().header, sizeof(internal::MsgHeader));
+
+        if (outgoing_messages.front().header.payload_size > 0) {
+            buffers.emplace_back(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size);
+        }
+
+        const std::size_t size {buffers_size(buffers)};
+
+        asio::async_write(tcp_socket, buffers,
+            [this, size](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
                     tcp_socket.close();
 
-                    throw internal::ConnectionError("Could not write header: " + ec.message());
+                    throw internal::ConnectionError("Could not write message: " + ec.message());
                 }
 
-                if (size < sizeof(internal::MsgHeader)) {
-                    tcp_socket.close();
-
-                    throw internal::ConnectionError("Could not write whole header");
-                }
-
-                // Check if there is a payload to write
-                if (outgoing_messages.front().header.payload_size > 0) {
-                    task_write_payload();
-                } else {
-                    outgoing_messages.pop_front();
-
-                    // Thus writing tasks can stop
-                    if (!outgoing_messages.empty()) {
-                        task_write_header();
-                    }
-                }
-            }
-        );
-    }
-
-    void ServerConnection::task_write_payload() {
-        assert(!outgoing_messages.empty());
-
-        asio::async_write(tcp_socket, asio::buffer(outgoing_messages.front().payload, outgoing_messages.front().header.payload_size),
-            [this](asio::error_code ec, std::size_t size) {
-                if (ec) {
-                    tcp_socket.close();
-
-                    throw internal::ConnectionError("Could not write payload: " + ec.message());
-                }
-
-                if (size < outgoing_messages.front().header.payload_size) {
-                    tcp_socket.close();
-
-                    throw internal::ConnectionError("Could not write whole payload");
-                }
+                assert(bytes_transferred == size);
 
                 outgoing_messages.pop_front();
 
                 // Thus writing tasks can stop
                 if (!outgoing_messages.empty()) {
-                    task_write_header();
+                    task_write_message();
                 }
             }
         );
@@ -273,18 +217,14 @@ namespace rain_net {
 
     void ServerConnection::task_read_header() {
         asio::async_read(tcp_socket, asio::buffer(&current_incoming_message.header, sizeof(internal::MsgHeader)),
-            [this](asio::error_code ec, std::size_t size) {
+            [this](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
                     tcp_socket.close();
 
                     throw internal::ConnectionError("Could not read header: " + ec.message());
                 }
 
-                if (size < sizeof(internal::MsgHeader)) {
-                    tcp_socket.close();
-
-                    throw internal::ConnectionError("Could not read whole header");
-                }
+                assert(bytes_transferred == sizeof(internal::MsgHeader));
 
                 // Check if there is a payload to read
                 if (current_incoming_message.header.payload_size > 0) {
@@ -302,18 +242,14 @@ namespace rain_net {
 
     void ServerConnection::task_read_payload() {
         asio::async_read(tcp_socket, asio::buffer(current_incoming_message.payload, current_incoming_message.header.payload_size),
-            [this](asio::error_code ec, std::size_t size) {
+            [this](asio::error_code ec, [[maybe_unused]] std::size_t bytes_transferred) {
                 if (ec) {
                     tcp_socket.close();
 
                     throw internal::ConnectionError("Could not read payload: " + ec.message());
                 }
 
-                if (size < current_incoming_message.header.payload_size) {
-                    tcp_socket.close();
-
-                    throw internal::ConnectionError("Could not read whole payload");
-                }
+                assert(bytes_transferred == current_incoming_message.header.payload_size);
 
                 add_to_incoming_messages();
                 task_read_header();
@@ -330,7 +266,7 @@ namespace rain_net {
 
                 // Restart the writing process, if it has stopped before
                 if (writing_tasks_stopped) {
-                    task_write_header();
+                    task_write_message();
                 }
             }
         );

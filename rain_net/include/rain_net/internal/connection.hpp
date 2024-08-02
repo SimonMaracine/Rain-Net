@@ -70,8 +70,7 @@ namespace rain_net {
         void start_communication();
         void add_to_incoming_messages();
 
-        void task_write_header();
-        void task_write_payload();
+        void task_write_message();
         void task_read_header();
         void task_read_payload();
         void task_send_message(const Message& message);
@@ -102,8 +101,7 @@ namespace rain_net {
         bool connection_established() const noexcept;
         void add_to_incoming_messages();
 
-        void task_write_header();
-        void task_write_payload();
+        void task_write_message();
         void task_read_header();
         void task_read_payload();
         void task_send_message(const Message& message);
