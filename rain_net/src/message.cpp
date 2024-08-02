@@ -53,6 +53,15 @@ namespace rain_net {
         return header.id;
     }
 
+    Message& Message::write(const void* data, std::size_t size) {
+        const std::size_t write_position {header.payload_size};
+
+        resize(size);
+        std::memcpy(payload + write_position, data, size);
+
+        return *this;
+    }
+
     void Message::resize(std::size_t additional_size) {
         const std::size_t old_payload_size {header.payload_size};
         unsigned char* old_payload {payload};
@@ -71,6 +80,15 @@ namespace rain_net {
 
     void Message::allocate(std::size_t size) {
         payload = new unsigned char[size];
+    }
+
+    MessageReader& MessageReader::read(void* data, std::size_t size) noexcept {
+        const std::size_t read_position {pointer - size};
+
+        std::memcpy(data, msg->payload + read_position, size);
+        pointer = read_position;
+
+        return *this;
     }
 
     MessageReader& MessageReader::operator()(const Message& message) noexcept {

@@ -50,13 +50,11 @@ namespace rain_net {
             static_assert(std::is_trivially_copyable_v<T>);
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const std::size_t write_position {header.payload_size};
-
-            resize(sizeof(T));
-            std::memcpy(payload + write_position, &data, sizeof(T));
-
-            return *this;
+            return write(&data, sizeof(T));
         }
+
+        // Write raw data to the message
+        Message& write(const void* data, std::size_t size);
     private:
         Message() noexcept = default;
 
@@ -81,13 +79,11 @@ namespace rain_net {
             static_assert(std::is_trivially_copyable_v<T>);
             static_assert(sizeof(T) <= internal::MAX_ITEM_SIZE);
 
-            const std::size_t read_position {pointer - sizeof(T)};
-
-            std::memcpy(&data, msg->payload + read_position, sizeof(T));
-            pointer = read_position;
-
-            return *this;
+            return read(&data, sizeof(T));
         }
+
+        // Read raw data from the message; must be done in reverse order
+        MessageReader& read(void* data, std::size_t size) noexcept;
 
         // Start reading the contents of a message
         MessageReader& operator()(const Message& message) noexcept;
