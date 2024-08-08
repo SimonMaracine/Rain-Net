@@ -27,7 +27,7 @@ int main() {
     std::cout << message.id() << ", " << message.size() << '\n';
 
     asio::io_context ctx;
-    rain_net::internal::SyncQueue<rain_net::internal::OwnedMsg> q1;
+    rain_net::internal::SyncQueue<std::pair<rain_net::Message, std::shared_ptr<rain_net::ClientConnection>>> q1;
     rain_net::internal::SyncQueue<rain_net::Message> q2;
 
     rain_net::ClientConnection* connection {

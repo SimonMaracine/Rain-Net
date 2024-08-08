@@ -58,36 +58,27 @@ int main() {
     }
 
     ThisClient client;
-    client.connect("localhost", 6001);
 
-    if (client.fail()) {
-        std::cout << client.fail_reason() << '\n';
+    try {
+        client.connect("localhost", 6001);
+
+        while (!client.connection_established()) {
+            if (!running) {
+                return 0;
+            }
+        }
+
+        std::cout << "Connected\n";
+
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
+
+            client.ping_server();
+            client.process_messages();
+        }
+    } catch (const rain_net::ConnectionError& e) {
+        std::cout << e.what() << '\n';
         return 1;
-    }
-
-    while (!client.connection_established()) {
-        if (client.fail()) {
-            std::cout << client.fail_reason() << '\n';
-            return 1;
-        }
-
-        if (!running) {
-            return 0;
-        }
-    }
-
-    std::cout << "Connected\n";
-
-    while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));
-
-        client.ping_server();
-        client.process_messages();
-
-        if (client.fail()) {
-            std::cout << "Unexpected error: " << client.fail_reason() << '\n';
-            return 1;
-        }
     }
 
     client.disconnect();

@@ -35,8 +35,7 @@ namespace rain_net {
         try {
             endpoints = resolver.resolve(host, std::to_string(port));
         } catch (const std::system_error& e) {
-            set_error(e.what());
-            return;
+            throw ConnectionError(e.what());
         }
 
         connection = std::make_unique<ServerConnection>(
@@ -52,9 +51,9 @@ namespace rain_net {
             try {
                 asio_context.run();
             } catch (const std::system_error& e) {
-                set_error(e.what());
-            } catch (const internal::ConnectionError& e) {
-                set_error(e.what());
+                error = std::make_exception_ptr(ConnectionError(e.what()));
+            } catch (const ConnectionError& e) {
+                error = std::current_exception();
             }
         });
     }
@@ -74,10 +73,14 @@ namespace rain_net {
 
         connection.reset();
 
-        clear_error();
+        error = nullptr;
     }
 
-    bool Client::connection_established() const noexcept {
+    bool Client::connection_established() const {
+        if (error) {
+            std::rethrow_exception(error);
+        }
+
         if (connection == nullptr) {
             return false;
         }
@@ -94,6 +97,10 @@ namespace rain_net {
     }
 
     void Client::send_message(const Message& message) {
+        if (error) {
+            std::rethrow_exception(error);
+        }
+
         assert(connection != nullptr);
 
         connection->send(message);

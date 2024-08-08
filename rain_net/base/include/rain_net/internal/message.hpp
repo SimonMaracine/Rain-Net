@@ -8,18 +8,19 @@
 #include <limits>
 
 namespace rain_net {
-    class ClientConnection;
-    class ServerConnection;
     class MessageReader;
 
     namespace internal {
-        class Connection;
-
         inline constexpr std::size_t MAX_ITEM_SIZE {std::numeric_limits<std::uint16_t>::max()};
 
         struct MsgHeader final {
             std::uint16_t id {};
             std::uint16_t payload_size {};
+        };
+
+        struct BasicMessage final {
+            MsgHeader header;
+            std::unique_ptr<unsigned char[]> payload;
         };
 
         static_assert(std::is_trivially_copyable_v<MsgHeader>);
@@ -30,19 +31,23 @@ namespace rain_net {
     class Message final {
     public:
         explicit Message(std::uint16_t id) noexcept;
+        Message(internal::MsgHeader header, std::unique_ptr<unsigned char[]>&& payload) noexcept;
+
+        ~Message() noexcept = default;
 
         Message(const Message& other);
         Message& operator=(const Message& other);
-        Message(Message&& other) noexcept;
-        Message& operator=(Message&& other) noexcept;
+        Message(Message&&) noexcept = default;
+        Message& operator=(Message&&) noexcept = default;
 
-        ~Message() noexcept;
-
-        // Get the size of the message, including header abd payload
+        // Get the size of the message, including header and payload
         std::size_t size() const noexcept;
 
         // Get the message ID
         std::uint16_t id() const noexcept;
+
+        internal::MsgHeader get_header() const noexcept { return header; }
+        const unsigned char* get_payload() const noexcept { return payload.get(); }
 
         // Write data to the message
         template<typename T>
@@ -59,14 +64,10 @@ namespace rain_net {
         Message() noexcept = default;
 
         void resize(std::size_t additional_size);
-        void allocate(std::size_t size);  // Used externally
 
         internal::MsgHeader header;
-        unsigned char* payload {nullptr};
+        std::unique_ptr<unsigned char[]> payload;
 
-        friend class internal::Connection;
-        friend class ClientConnection;
-        friend class ServerConnection;
         friend class MessageReader;
     };
 
@@ -91,11 +92,4 @@ namespace rain_net {
         std::size_t pointer {};
         const Message* msg {nullptr};
     };
-
-    namespace internal {
-        struct OwnedMsg final {
-            Message message {0};
-            std::shared_ptr<ClientConnection> remote;
-        };
-    }
 }

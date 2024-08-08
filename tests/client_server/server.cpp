@@ -8,13 +8,10 @@ enum MsgType : std::uint16_t {
     PingServer
 };
 
-static void log(std::string&& message) {
-    std::cerr << message << '\n';
-}
-
 struct ThisServer : public rain_net::Server {
-    ThisServer()
-        : rain_net::Server(log) {}
+    void on_log(const std::string& message) override {
+        std::cerr << message << '\n';
+    }
 
     bool on_client_connected(std::shared_ptr<rain_net::ClientConnection>) override {
         return true;
@@ -32,7 +29,7 @@ struct ThisServer : public rain_net::Server {
                 break;
             }
 
-            const auto& [connection, message] {*result};
+            const auto& [message, connection] {*result};
 
             switch (message.id()) {
                 case MsgType::PingServer:
@@ -59,19 +56,16 @@ int main() {
     }
 
     ThisServer server;
-    server.start(6001);
 
-    if (server.fail()) {
-        return 1;
-    }
+    try {
+        server.start(6001);
 
-    while (running) {
-        server.accept_connections();
-        server.process_messages();
-
-        if (server.fail()) {
-            return 1;
+        while (running) {
+            server.accept_connections();
+            server.process_messages();
         }
+    } catch (const rain_net::ConnectionError& e) {
+        return 1;
     }
 
     server.stop();

@@ -40,14 +40,14 @@ namespace rain_net {
 
             T pop_back() {
                 std::lock_guard<std::mutex> lock {mutex};
-                const T item {std::move(queue.back())};
+                T item {std::move(queue.back())};
                 queue.pop_back();
                 return item;
             }
 
             T pop_front() {
                 std::lock_guard<std::mutex> lock {mutex};
-                const T item {std::move(queue.front())};
+                T item {std::move(queue.front())};
                 queue.pop_front();
                 return item;
             }

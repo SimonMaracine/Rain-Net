@@ -5,6 +5,7 @@
 #include <string_view>
 #include <cstdint>
 #include <optional>
+#include <exception>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -19,12 +20,14 @@
 
 #include "rain_net/internal/queue.hpp"
 #include "rain_net/internal/message.hpp"
-#include "rain_net/internal/connection.hpp"
-#include "rain_net/internal/errorable.hpp"
+#include "rain_net/internal/server_connection.hpp"
+
+// Forward
+#include "rain_net/internal/error.hpp"
 
 namespace rain_net {
     // Base class for the client application
-    class Client : public internal::Errorable {
+    class Client {
     public:
         Client() = default;
         virtual ~Client();
@@ -47,19 +50,20 @@ namespace rain_net {
 
         // After a call to connect(), check if the connection has been established
         // You may call this in a loop
-        bool connection_established() const noexcept;
-    protected:
+        bool connection_established() const;
+
         // Poll the next message from the server; you usually do it in a loop until std::nullopt
         std::optional<Message> next_incoming_message();
 
         // Send a message to the server
         void send_message(const Message& message);
-
-        // Don't touch these unless you really know what you're doing
+    private:
         internal::SyncQueue<Message> incoming_messages;
         std::unique_ptr<ServerConnection> connection;
-    private:
+
         std::thread context_thread;
         asio::io_context asio_context;
+
+        std::exception_ptr error;
     };
 }

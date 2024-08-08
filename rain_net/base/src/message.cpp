@@ -7,42 +7,27 @@ namespace rain_net {
         header.id = id;
     }
 
+    Message::Message(internal::MsgHeader header, std::unique_ptr<unsigned char[]>&& payload) noexcept
+        : header(header), payload(std::move(payload)) {}
+
     Message::Message(const Message& other) {
         if (other.payload != nullptr) {
-            payload = new unsigned char[other.header.payload_size];
-            std::memcpy(payload, other.payload, other.header.payload_size);
+            payload = std::make_unique<unsigned char[]>(other.header.payload_size);
+            std::memcpy(payload.get(), other.payload.get(), other.header.payload_size);
         }
 
         header = other.header;
     }
 
     Message& Message::operator=(const Message& other) {
-        delete[] payload;
-
         if (other.payload != nullptr) {
-            payload = new unsigned char[other.header.payload_size];
-            std::memcpy(payload, other.payload, other.header.payload_size);
+            payload = std::make_unique<unsigned char[]>(other.header.payload_size);
+            std::memcpy(payload.get(), other.payload.get(), other.header.payload_size);
         }
 
         header = other.header;
 
         return *this;
-    }
-
-    Message::Message(Message&& other) noexcept
-        : header(other.header), payload(std::exchange(other.payload, nullptr)) {}
-
-    Message& Message::operator=(Message&& other) noexcept {
-        delete[] payload;
-
-        payload = std::exchange(other.payload, nullptr);
-        header = other.header;
-
-        return *this;
-    }
-
-    Message::~Message() noexcept {
-        delete[] payload;
     }
 
     std::size_t Message::size() const noexcept {
@@ -57,35 +42,29 @@ namespace rain_net {
         const std::size_t write_position {header.payload_size};
 
         resize(size);
-        std::memcpy(payload + write_position, data, size);
+        std::memcpy(payload.get() + write_position, data, size);
 
         return *this;
     }
 
     void Message::resize(std::size_t additional_size) {
         const std::size_t old_payload_size {header.payload_size};
-        unsigned char* old_payload {payload};
+        const auto old_payload {std::move(payload)};
         const std::size_t new_payload_size {header.payload_size + additional_size};
 
-        payload = new unsigned char[new_payload_size];
+        payload = std::make_unique<unsigned char[]>(new_payload_size);
 
         if (old_payload != nullptr) {
-            std::memcpy(payload, old_payload, old_payload_size);
+            std::memcpy(payload.get(), old_payload.get(), old_payload_size);
         }
 
         header.payload_size = static_cast<std::uint16_t>(new_payload_size);
-
-        delete[] old_payload;
-    }
-
-    void Message::allocate(std::size_t size) {
-        payload = new unsigned char[size];
     }
 
     MessageReader& MessageReader::read(void* data, std::size_t size) noexcept {
         const std::size_t read_position {pointer - size};
 
-        std::memcpy(data, msg->payload + read_position, size);
+        std::memcpy(data, msg->payload.get() + read_position, size);
         pointer = read_position;
 
         return *this;
