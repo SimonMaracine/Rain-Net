@@ -8,7 +8,7 @@ enum MessageType {
     PingServer
 };
 
-void handle_message(const rain_net::Message& message) {
+static void handle_message(const rain_net::Message& message) {
     switch (message.id()) {
         case MessageType::PingServer: {
             const auto current_time {std::chrono::steady_clock::now()};
@@ -24,7 +24,7 @@ void handle_message(const rain_net::Message& message) {
     }
 }
 
-void ping_server(rain_net::Client& client) {
+static void ping_server(rain_net::Client& client) {
     rain_net::Message message {MessageType::PingServer};
 
     const auto current_time {std::chrono::steady_clock::now()};
@@ -62,7 +62,7 @@ int main() {
 
             ping_server(client);
 
-            while (client.available()) {
+            while (client.available_messages()) {
                 const auto message {client.next_message()};
 
                 handle_message(message);

@@ -19,10 +19,10 @@ namespace rain_net {
             asio::ip::tcp::socket&& tcp_socket,
             internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& incoming_messages,
             std::uint32_t client_id,
-            std::function<void(const std::string&)>&& log
+            const std::function<void(const std::string&)>& log
         )
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            log(std::move(log)), client_id(client_id) {}
+            log(log), client_id(client_id) {}
 
         // Send a message asynchronously
         void send(const Message& message);
@@ -39,7 +39,7 @@ namespace rain_net {
         void task_send_message(const Message& message);
 
         internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& incoming_messages;
-        std::function<void(const std::string&)> log;
+        const std::function<void(const std::string&)>& log;
         std::uint32_t client_id {};  // Given by the server
 
         friend class Server;

@@ -1,7 +1,6 @@
 #include "rain_net/server.hpp"
 
 #include <stdexcept>
-#include <functional>
 #include <cassert>
 
 #ifdef __GNUG__
@@ -89,13 +88,39 @@ namespace rain_net {
         error = nullptr;
     }
 
-    void Server::update() {
+    void Server::accept_connections() {
         if (error) {
             std::rethrow_exception(error);
         }
 
-        accept_connections();
-        process_messages();
+        // This function may only pop connections and the accepting thread may only push connections
+
+        while (!new_connections.empty()) {
+            const auto connection {new_connections.pop_front()};
+
+            if (on_client_connected(*this, connection)) {
+                connections.push_front(connection);
+                connection->start_communication();
+            } else {
+                // The server side code must not keep any reference to the connection at this point
+                // Must close the socket immediately
+
+                connection->tcp_socket.close();
+                clients.deallocate_id(connection->get_id());
+            }
+        }
+    }
+
+    std::pair<Message, std::shared_ptr<ClientConnection>> Server::next_message() {
+        if (error) {
+            std::rethrow_exception(error);
+        }
+
+        return incoming_messages.pop_front();
+    }
+
+    bool Server::available_messages() const {
+        return !incoming_messages.empty();
     }
 
     void Server::check_connections() {
@@ -111,7 +136,7 @@ namespace rain_net {
             assert(connection != nullptr);
 
             if (!connection->is_open()) {
-                on_client_disconnected(connection);
+                on_client_disconnected(*this, connection);
                 clients.deallocate_id(connection->get_id());
 
                 if ((iter = connections.erase_after(before_iter)) == list.end()) {
@@ -124,8 +149,8 @@ namespace rain_net {
     void Server::send_message(std::shared_ptr<ClientConnection> connection, const Message& message) {
         assert(connection != nullptr);
 
-        if (!connection->is_open()) {
-            on_client_disconnected(connection);
+        if (!connection->is_open()) {  // FIXME search through current connections; don't call on_client_disconnected multiple times
+            on_client_disconnected(*this, connection);
             clients.deallocate_id(connection->get_id());
             connections.remove(connection);
             return;
@@ -143,7 +168,7 @@ namespace rain_net {
             assert(connection != nullptr);
 
             if (!connection->is_open()) {
-                on_client_disconnected(connection);
+                on_client_disconnected(*this, connection);
                 clients.deallocate_id(connection->get_id());
 
                 if ((iter = connections.erase_after(before_iter)) == list.end()) {
@@ -170,7 +195,7 @@ namespace rain_net {
             }
 
             if (!connection->is_open()) {
-                on_client_disconnected(connection);
+                on_client_disconnected(*this, connection);
                 clients.deallocate_id(connection->get_id());
 
                 if ((iter = connections.erase_after(before_iter)) == list.end()) {
@@ -181,35 +206,6 @@ namespace rain_net {
             }
 
             connection->send(message);
-        }
-    }
-
-    void Server::on_log([[maybe_unused]] const std::string& message) {}
-
-    void Server::process_messages() {
-        while (!incoming_messages.empty()) {
-            const auto& [message, connection] {incoming_messages.pop_front()};
-
-            on_message_received(message, connection);
-        }
-    }
-
-    void Server::accept_connections() {
-        // This function may only pop connections and the accepting thread may only push connections
-
-        while (!new_connections.empty()) {
-            const auto connection {new_connections.pop_front()};
-
-            if (on_client_connected(connection)) {
-                connections.push_front(connection);
-                connection->start_communication();
-            } else {
-                // The server side code must not keep any reference to the connection at this point
-                // Must close the socket immediately
-
-                connection->tcp_socket.close();
-                clients.deallocate_id(connection->get_id());
-            }
         }
     }
 
@@ -241,7 +237,7 @@ namespace rain_net {
                                 std::move(socket),
                                 incoming_messages,
                                 *new_id,
-                                std::bind(&Server::on_log, this, std::placeholders::_1)
+                                on_log
                             )
                         );
                     }

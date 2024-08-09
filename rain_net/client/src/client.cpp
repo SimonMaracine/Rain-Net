@@ -92,10 +92,10 @@ namespace rain_net {
             std::rethrow_exception(error);
         }
 
-        incoming_messages.pop_front();
+        return incoming_messages.pop_front();
     }
 
-    bool Client::available() const {
+    bool Client::available_messages() const {
         return !incoming_messages.empty();
     }
 

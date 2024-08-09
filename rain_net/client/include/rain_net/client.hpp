@@ -59,14 +59,14 @@ namespace rain_net {
         Message next_message();
 
         // Check if there are available incoming messages
-        bool available() const;
+        bool available_messages() const;
 
         // Send a message to the server
         // Does nothing, if the connection is not established
         void send_message(const Message& message);
     private:
-        internal::SyncQueue<Message> incoming_messages;
         std::unique_ptr<ServerConnection> connection;
+        internal::SyncQueue<Message> incoming_messages;
 
         std::thread context_thread;
         asio::io_context asio_context;

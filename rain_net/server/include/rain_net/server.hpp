@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 #include <utility>
+#include <functional>
 #include <exception>
 
 #ifdef __GNUG__
@@ -36,10 +37,17 @@ namespace rain_net {
         // Default capacity of clients
         static constexpr std::uint32_t MAX_CLIENTS {std::numeric_limits<std::uint16_t>::max()};
 
-        Server()
-            : acceptor(asio_context) {}
+        static constexpr auto ON_LOG {[](const std::string&) {}};
 
-        virtual ~Server();
+        Server(
+            std::function<bool(Server&, std::shared_ptr<ClientConnection>)> on_client_connected,
+            std::function<void(Server&, std::shared_ptr<ClientConnection>)> on_client_disconnected,
+            std::function<void(const std::string&)> on_log = ON_LOG
+        )
+            : acceptor(asio_context), on_client_connected(std::move(on_client_connected)),
+            on_client_disconnected(std::move(on_client_disconnected)), on_log(std::move(on_log)) {}
+
+        ~Server();
 
         Server(const Server&) = delete;
         Server& operator=(const Server&) = delete;
@@ -59,10 +67,18 @@ namespace rain_net {
         // It is automatically called in the destructor
         void stop();
 
-        // Update the server by accepting new connections and processing messages; you must call this regularly
-        // Invokes on_client_connected() and on_message_received() when needed
+        // Accepting new connections; you must call this regularly
+        // Invokes on_client_connected() when needed
         // Throws errors
-        void update();
+        void accept_connections();
+
+        // Poll the next incoming message from the queue
+        // You may call it in a loop to process as many messages as you want
+        // Throws errors
+        std::pair<Message, std::shared_ptr<ClientConnection>> next_message();
+
+        // Check if there are available incoming messages
+        bool available_messages() const;
 
         // Check all connections to see if they are valid; invokes on_client_disconnected() when needed
         // You may not really need it
@@ -77,30 +93,20 @@ namespace rain_net {
 
         // Send a message to all clients except a specific client; invokes on_client_disconnected() when needed
         void send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception);
-    protected:
-        // Called for certain events
-        virtual void on_log(const std::string& message);
-
-        // Called when a new client tries to connect; return false to reject the client
-        virtual bool on_client_connected(std::shared_ptr<ClientConnection> connection) = 0;
-
-        // Called when a client disconnection is detected
-        virtual void on_client_disconnected(std::shared_ptr<ClientConnection> connection) = 0;
-
-        // Called for every processed message
-        virtual void on_message_received(const Message& message, std::shared_ptr<ClientConnection> connection) = 0;
     private:
-        void process_messages();
-        void accept_connections();
         void task_accept_connection();
 
-        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>> incoming_messages;
         std::forward_list<std::shared_ptr<ClientConnection>> connections;
         internal::SyncQueue<std::shared_ptr<ClientConnection>> new_connections;
+        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>> incoming_messages;
 
         std::thread context_thread;
         asio::io_context asio_context;
         asio::ip::tcp::acceptor acceptor;
+
+        std::function<bool(Server&, std::shared_ptr<ClientConnection>)> on_client_connected;
+        std::function<void(Server&, std::shared_ptr<ClientConnection>)> on_client_disconnected;
+        std::function<void(const std::string&)> on_log;
 
         internal::PoolClients clients;
         std::exception_ptr error;
