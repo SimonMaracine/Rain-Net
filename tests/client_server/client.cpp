@@ -1,46 +1,37 @@
 #include <iostream>
-#include <cstdint>
 #include <csignal>
 #include <chrono>
 
 #include <rain_net/client.hpp>
 
-enum MsgType : std::uint16_t {
+enum MessageType {
     PingServer
 };
 
-struct ThisClient : public rain_net::Client {
-    void ping_server() {
-        rain_net::Message message {MsgType::PingServer};
+void handle_message(const rain_net::Message& message) {
+    switch (message.id()) {
+        case MessageType::PingServer: {
+            const auto current_time {std::chrono::steady_clock::now()};
+            std::chrono::steady_clock::time_point previous_time;
 
-        const auto current_time {std::chrono::steady_clock::now()};
-        message << current_time;
+            rain_net::MessageReader reader;
+            reader(message) >> previous_time;
 
-        send_message(message);
-    }
+            std::cout << "Ping: " << std::chrono::duration<double>(current_time - previous_time).count() << '\n';
 
-    void on_connected() override {
-        std::cout << "Connected\n";
-    }
-
-    void on_message_received(const rain_net::Message& message) override {
-        switch (message.id()) {
-            case MsgType::PingServer: {
-                const auto current_time {std::chrono::steady_clock::now()};
-                std::chrono::steady_clock::time_point previous_time;
-
-                rain_net::MessageReader reader;
-                reader(message) >> previous_time;
-
-                std::cout << "Ping: " << std::chrono::duration<double>(current_time - previous_time).count() << '\n';
-
-                break;
-            }
+            break;
         }
     }
+}
 
-    bool connected {false};
-};
+void ping_server(rain_net::Client& client) {
+    rain_net::Message message {MessageType::PingServer};
+
+    const auto current_time {std::chrono::steady_clock::now()};
+    message << current_time;
+
+    client.send_message(message);
+}
 
 static volatile bool running {true};
 
@@ -53,24 +44,29 @@ int main() {
         return 1;
     }
 
-    ThisClient client;
+    rain_net::Client client;
 
     try {
         client.connect("localhost", 6001);
 
-        // while (!client.connection_established()) {
-        //     if (!running) {
-        //         return 0;
-        //     }
-        // }
+        while (!client.connection_established()) {
+            if (!running) {
+                return 0;
+            }
+        }
 
-        // std::cout << "Connected\n";
+        std::cout << "Connected\n";
 
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(40));
 
-            client.ping_server();
-            client.update();
+            ping_server(client);
+
+            while (client.available()) {
+                const auto message {client.next_message()};
+
+                handle_message(message);
+            }
         }
     } catch (const rain_net::ConnectionError& e) {
         std::cout << e.what() << '\n';

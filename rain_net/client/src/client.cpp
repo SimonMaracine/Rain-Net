@@ -2,7 +2,6 @@
 
 #include <string>
 #include <stdexcept>
-#include <cassert>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -76,15 +75,11 @@ namespace rain_net {
         error = nullptr;
     }
 
-    void Client::update() {
+    bool Client::connection_established() const {
         if (error) {
             std::rethrow_exception(error);
         }
 
-        process_messages();
-    }
-
-    bool Client::connection_established() const noexcept {
         if (connection == nullptr) {
             return false;
         }
@@ -92,15 +87,23 @@ namespace rain_net {
         return connection->connection_established();
     }
 
-    void Client::send_message(const Message& message) {
-        assert(connection != nullptr);
+    Message Client::next_message() {
+        if (error) {
+            std::rethrow_exception(error);
+        }
 
-        connection->send(message);
+        incoming_messages.pop_front();
     }
 
-    void Client::process_messages() {
-        while (!incoming_messages.empty()) {
-            on_message_received(incoming_messages.pop_front());
+    bool Client::available() const {
+        return !incoming_messages.empty();
+    }
+
+    void Client::send_message(const Message& message) {
+        if (connection == nullptr) {
+            return;
         }
+
+        connection->send(message);
     }
 }

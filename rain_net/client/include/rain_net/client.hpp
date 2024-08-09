@@ -29,7 +29,7 @@ namespace rain_net {
     class Client {
     public:
         Client() = default;
-        virtual ~Client();
+        ~Client();
 
         Client(const Client&) = delete;
         Client& operator=(const Client&) = delete;
@@ -48,20 +48,23 @@ namespace rain_net {
         // It is automatically called in the destructor
         void disconnect();
 
-        // Update the client by processing messages; you must call this regularly
-        // Invokes on_connected() and on_message_received() when needed
+        // After a call to connect(), check if the connection has been established
+        // You may call this in a loop
         // Throws errors
-        void update();
+        bool connection_established() const;
 
-        bool connection_established() const noexcept;
+        // Poll the next incoming message from the queue
+        // You may call it in a loop to process as many messages as you want
+        // Throws errors
+        Message next_message();
+
+        // Check if there are available incoming messages
+        bool available() const;
 
         // Send a message to the server
+        // Does nothing, if the connection is not established
         void send_message(const Message& message);
-    protected:
-        virtual void on_message_received(const Message& message) = 0;
     private:
-        void process_messages();
-
         internal::SyncQueue<Message> incoming_messages;
         std::unique_ptr<ServerConnection> connection;
 
