@@ -19,14 +19,15 @@ namespace rain_net {
             asio::ip::tcp::socket&& tcp_socket,
             internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& incoming_messages,
             std::uint32_t client_id,
-            const std::function<void(const std::string&)>& log
+            std::function<void(const std::string&)>&& log
         )
             : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            log(log), client_id(client_id) {}
+            log(std::move(log)), client_id(client_id) {}
 
         // Send a message asynchronously
         void send(const Message& message);
 
+        // Get the unique ID of this client
         std::uint32_t get_id() const noexcept;
     private:
         void start_communication();

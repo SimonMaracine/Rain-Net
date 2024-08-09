@@ -89,31 +89,13 @@ namespace rain_net {
         error = nullptr;
     }
 
-    bool Server::available() const {
-        return !incoming_messages.empty();
-    }
-
-    void Server::accept_connections() {
+    void Server::update() {
         if (error) {
             std::rethrow_exception(error);
         }
 
-        // This function may only pop connections and the accepting thread may only push connections
-
-        while (!new_connections.empty()) {
-            const auto connection {new_connections.pop_front()};
-
-            if (on_client_connected(connection)) {
-                connections.push_front(connection);
-                connection->start_communication();
-            } else {
-                // The server side code must not keep any reference to the connection at this point
-                // Must close the socket immediately
-
-                connection->tcp_socket.close();
-                clients.deallocate_id(connection->get_id());
-            }
-        }
+        accept_connections();
+        process_messages();
     }
 
     void Server::check_connections() {
@@ -139,23 +121,7 @@ namespace rain_net {
         }
     }
 
-    std::optional<std::pair<Message, std::shared_ptr<ClientConnection>>> Server::next_incoming_message() {
-        if (incoming_messages.empty()) {
-            return std::nullopt;
-        }
-
-        std::pair<Message, std::shared_ptr<ClientConnection>> message {incoming_messages.pop_front()};
-
-        assert(message.second != nullptr);
-
-        return std::make_optional(std::move(message));
-    }
-
     void Server::send_message(std::shared_ptr<ClientConnection> connection, const Message& message) {
-        if (error) {
-            std::rethrow_exception(error);
-        }
-
         assert(connection != nullptr);
 
         if (!connection->is_open()) {
@@ -169,10 +135,6 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message) {
-        if (error) {
-            std::rethrow_exception(error);
-        }
-
         const auto& list {connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
@@ -196,10 +158,6 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception) {
-        if (error) {
-            std::rethrow_exception(error);
-        }
-
         const auto& list {connections};
 
         for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
@@ -227,6 +185,33 @@ namespace rain_net {
     }
 
     void Server::on_log([[maybe_unused]] const std::string& message) {}
+
+    void Server::process_messages() {
+        while (!incoming_messages.empty()) {
+            const auto& [message, connection] {incoming_messages.pop_front()};
+
+            on_message_received(message, connection);
+        }
+    }
+
+    void Server::accept_connections() {
+        // This function may only pop connections and the accepting thread may only push connections
+
+        while (!new_connections.empty()) {
+            const auto connection {new_connections.pop_front()};
+
+            if (on_client_connected(connection)) {
+                connections.push_front(connection);
+                connection->start_communication();
+            } else {
+                // The server side code must not keep any reference to the connection at this point
+                // Must close the socket immediately
+
+                connection->tcp_socket.close();
+                clients.deallocate_id(connection->get_id());
+            }
+        }
+    }
 
     void Server::task_accept_connection() {
         // In this thread IDs are allocated, but in the main thread they are freed

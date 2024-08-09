@@ -1,8 +1,20 @@
 #include "rain_net/internal/message.hpp"
 
 #include <utility>
+#include <cstring>
 
 namespace rain_net {
+    namespace internal {
+        BasicMessage clone_message(const Message& message) {
+            internal::BasicMessage result;
+            result.header = message.header;
+            result.payload = std::make_unique<unsigned char[]>(message.header.payload_size);
+            std::memcpy(result.payload.get(), message.payload.get(), message.header.payload_size);
+
+            return result;
+        }
+    }
+
     Message::Message(std::uint16_t id) noexcept {
         header.id = id;
     }

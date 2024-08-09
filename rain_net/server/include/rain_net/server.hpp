@@ -5,7 +5,6 @@
 #include <thread>
 #include <forward_list>
 #include <limits>
-#include <optional>
 #include <string>
 #include <utility>
 #include <exception>
@@ -50,6 +49,7 @@ namespace rain_net {
         // Start the internal event loop and start accepting connection requests
         // You may call this only once in the beginning or after calling stop()
         // Specify the port number on which to listen and the maximum amount of clients allowed
+        // Throws errors
         void start(std::uint16_t port, std::uint32_t max_clients = MAX_CLIENTS);
 
         // Disconnect from all the clients and stop the internal event loop
@@ -59,18 +59,15 @@ namespace rain_net {
         // It is automatically called in the destructor
         void stop();
 
-        // Check if there are available incoming messages without polling them
-        bool available() const;
-
-        // Accept new connections; invokes on_client_connected(); you must call this regularly
-        void accept_connections();
+        // Update the server by accepting new connections and processing messages; you must call this regularly
+        // Invokes on_client_connected() and on_message_received() when needed
+        // Throws errors
+        void update();
 
         // Check all connections to see if they are valid; invokes on_client_disconnected() when needed
         // You may not really need it
+        // Throws errors
         void check_connections();
-
-        // Poll the next message from the clients; you usually do it in a loop until std::nullopt
-        std::optional<std::pair<Message, std::shared_ptr<ClientConnection>>> next_incoming_message();
 
         // Send a message to a specific client; invokes on_client_disconnected() when needed
         void send_message(std::shared_ptr<ClientConnection> connection, const Message& message);
@@ -89,7 +86,12 @@ namespace rain_net {
 
         // Called when a client disconnection is detected
         virtual void on_client_disconnected(std::shared_ptr<ClientConnection> connection) = 0;
+
+        // Called for every processed message
+        virtual void on_message_received(const Message& message, std::shared_ptr<ClientConnection> connection) = 0;
     private:
+        void process_messages();
+        void accept_connections();
         void task_accept_connection();
 
         internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>> incoming_messages;

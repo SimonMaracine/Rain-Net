@@ -4,7 +4,6 @@
 #include <memory>
 #include <string_view>
 #include <cstdint>
-#include <optional>
 #include <exception>
 
 #ifdef __GNUG__
@@ -39,6 +38,7 @@ namespace rain_net {
 
         // Start the client's internal event loop and connect to the server
         // You may call this only once in the beginning or after calling disconnect()
+        // Throws errors
         void connect(std::string_view host, std::uint16_t port);
 
         // Disconnect from the server and stop the internal event loop
@@ -48,16 +48,20 @@ namespace rain_net {
         // It is automatically called in the destructor
         void disconnect();
 
-        // After a call to connect(), check if the connection has been established
-        // You may call this in a loop
-        bool connection_established() const;
+        // Update the client by processing messages; you must call this regularly
+        // Invokes on_connected() and on_message_received() when needed
+        // Throws errors
+        void update();
 
-        // Poll the next message from the server; you usually do it in a loop until std::nullopt
-        std::optional<Message> next_incoming_message();
+        bool connection_established() const noexcept;
 
         // Send a message to the server
         void send_message(const Message& message);
+    protected:
+        virtual void on_message_received(const Message& message) = 0;
     private:
+        void process_messages();
+
         internal::SyncQueue<Message> incoming_messages;
         std::unique_ptr<ServerConnection> connection;
 

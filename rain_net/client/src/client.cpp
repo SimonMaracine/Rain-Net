@@ -76,11 +76,15 @@ namespace rain_net {
         error = nullptr;
     }
 
-    bool Client::connection_established() const {
+    void Client::update() {
         if (error) {
             std::rethrow_exception(error);
         }
 
+        process_messages();
+    }
+
+    bool Client::connection_established() const noexcept {
         if (connection == nullptr) {
             return false;
         }
@@ -88,21 +92,15 @@ namespace rain_net {
         return connection->connection_established();
     }
 
-    std::optional<Message> Client::next_incoming_message() {
-        if (incoming_messages.empty()) {
-            return std::nullopt;
-        }
-
-        return std::make_optional(incoming_messages.pop_front());
-    }
-
     void Client::send_message(const Message& message) {
-        if (error) {
-            std::rethrow_exception(error);
-        }
-
         assert(connection != nullptr);
 
         connection->send(message);
+    }
+
+    void Client::process_messages() {
+        while (!incoming_messages.empty()) {
+            on_message_received(incoming_messages.pop_front());
+        }
     }
 }

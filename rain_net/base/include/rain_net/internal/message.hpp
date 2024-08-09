@@ -2,13 +2,13 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <cstring>
 #include <type_traits>
 #include <memory>
 #include <limits>
 
 namespace rain_net {
     class MessageReader;
+    class Message;
 
     namespace internal {
         inline constexpr std::size_t MAX_ITEM_SIZE {std::numeric_limits<std::uint16_t>::max()};
@@ -18,16 +18,18 @@ namespace rain_net {
             std::uint16_t payload_size {};
         };
 
+        static_assert(std::is_trivially_copyable_v<MsgHeader>);
+
         struct BasicMessage final {
             MsgHeader header;
             std::unique_ptr<unsigned char[]> payload;
         };
 
-        static_assert(std::is_trivially_copyable_v<MsgHeader>);
+        BasicMessage clone_message(const Message& message);
     }
 
     // Class representing a message, a blob of data
-    // Messages can only contain trivially copyable types
+    // Messages can only contain data from trivially copyable types
     class Message final {
     public:
         explicit Message(std::uint16_t id) noexcept;
@@ -45,9 +47,6 @@ namespace rain_net {
 
         // Get the message ID
         std::uint16_t id() const noexcept;
-
-        internal::MsgHeader get_header() const noexcept { return header; }
-        const unsigned char* get_payload() const noexcept { return payload.get(); }
 
         // Write data to the message
         template<typename T>
@@ -69,6 +68,7 @@ namespace rain_net {
         std::unique_ptr<unsigned char[]> payload;
 
         friend class MessageReader;
+        friend internal::BasicMessage internal::clone_message(const Message& message);
     };
 
     // Class used for reading messages

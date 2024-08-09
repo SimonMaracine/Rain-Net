@@ -21,25 +21,15 @@ struct ThisServer : public rain_net::Server {
 
     }
 
-    void process_messages() {
-        while (true) {
-            const auto result {next_incoming_message()};
+    void on_message_received(const rain_net::Message& message, std::shared_ptr<rain_net::ClientConnection> connection) override {
+        switch (message.id()) {
+            case MsgType::PingServer:
+                std::cout << "Ping request from " << connection->get_id() << '\n';
 
-            if (!result) {
+                // Just send the same message back
+                send_message(connection, message);
+
                 break;
-            }
-
-            const auto& [message, connection] {*result};
-
-            switch (message.id()) {
-                case MsgType::PingServer:
-                    std::cout << "Ping request from " << connection->get_id() << '\n';
-
-                    // Just send the same message back
-                    send_message(connection, message);
-
-                    break;
-            }
         }
     }
 };
@@ -61,8 +51,7 @@ int main() {
         server.start(6001);
 
         while (running) {
-            server.accept_connections();
-            server.process_messages();
+            server.update();
         }
     } catch (const rain_net::ConnectionError& e) {
         return 1;

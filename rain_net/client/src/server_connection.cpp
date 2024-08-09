@@ -120,12 +120,7 @@ namespace rain_net {
             [this, message]() {
                 const bool writing_tasks_stopped {outgoing_messages.empty()};
 
-                internal::BasicMessage basic_message;
-                basic_message.header = message.get_header();
-                basic_message.payload = std::make_unique<unsigned char[]>(basic_message.header.payload_size);
-                std::memcpy(basic_message.payload.get(), message.get_payload(), basic_message.header.payload_size);
-
-                outgoing_messages.push_back(std::move(basic_message));
+                outgoing_messages.push_back(internal::clone_message(message));
 
                 // Restart the writing process, if it has stopped before
                 if (writing_tasks_stopped) {

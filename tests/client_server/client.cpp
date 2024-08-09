@@ -19,31 +19,27 @@ struct ThisClient : public rain_net::Client {
         send_message(message);
     }
 
-    void process_messages() {
-        while (true) {
-            const auto result {next_incoming_message()};
+    void on_connected() override {
+        std::cout << "Connected\n";
+    }
 
-            if (!result) {
+    void on_message_received(const rain_net::Message& message) override {
+        switch (message.id()) {
+            case MsgType::PingServer: {
+                const auto current_time {std::chrono::steady_clock::now()};
+                std::chrono::steady_clock::time_point previous_time;
+
+                rain_net::MessageReader reader;
+                reader(message) >> previous_time;
+
+                std::cout << "Ping: " << std::chrono::duration<double>(current_time - previous_time).count() << '\n';
+
                 break;
-            }
-
-            const rain_net::Message& message {*result};
-
-            switch (message.id()) {
-                case MsgType::PingServer: {
-                    const auto current_time {std::chrono::steady_clock::now()};
-                    std::chrono::steady_clock::time_point previous_time;
-
-                    rain_net::MessageReader reader;
-                    reader(message) >> previous_time;
-
-                    std::cout << "Ping: " << std::chrono::duration<double>(current_time - previous_time).count() << '\n';
-
-                    break;
-                }
             }
         }
     }
+
+    bool connected {false};
 };
 
 static volatile bool running {true};
@@ -62,19 +58,19 @@ int main() {
     try {
         client.connect("localhost", 6001);
 
-        while (!client.connection_established()) {
-            if (!running) {
-                return 0;
-            }
-        }
+        // while (!client.connection_established()) {
+        //     if (!running) {
+        //         return 0;
+        //     }
+        // }
 
-        std::cout << "Connected\n";
+        // std::cout << "Connected\n";
 
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(40));
 
             client.ping_server();
-            client.process_messages();
+            client.update();
         }
     } catch (const rain_net::ConnectionError& e) {
         std::cout << e.what() << '\n';

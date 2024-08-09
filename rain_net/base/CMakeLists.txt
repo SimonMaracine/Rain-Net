@@ -5,6 +5,7 @@ add_library(rain_net_base
     "include/rain_net/internal/error.hpp"
     "include/rain_net/internal/message.hpp"
     "include/rain_net/internal/queue.hpp"
+    "include/rain_net/conversion.hpp"
     "include/rain_net/version.hpp"
     "src/connection.cpp"
     "src/message.cpp"
