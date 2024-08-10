@@ -38,24 +38,24 @@ namespace rain_net {
 
         // Start the client's internal event loop and connect to the server
         // You may call this only once in the beginning or after calling disconnect()
-        // Throws errors
+        // Throws connection errors
         void connect(std::string_view host, std::uint16_t port);
 
         // Disconnect from the server and stop the internal event loop
         // You may call this at any time
         // After a call to disconnect(), you may reconnect by calling connect() again
-        // Clears the error flag
+        // If a connection error occurs, it must be immediately called
         // It is automatically called in the destructor
         void disconnect();
 
         // After a call to connect(), check if the connection has been established
         // You may call this in a loop
-        // Throws errors
+        // Throws connection errors
         bool connection_established() const;
 
         // Poll the next incoming message from the queue
         // You may call it in a loop to process as many messages as you want
-        // Throws errors
+        // Throws connection errors
         Message next_message();
 
         // Check if there are available incoming messages

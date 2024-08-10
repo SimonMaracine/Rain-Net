@@ -41,6 +41,7 @@ namespace rain_net {
         internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& incoming_messages;
         const std::function<void(const std::string&)>& log;
         std::uint32_t client_id {};  // Given by the server
+        bool used {false};  // Set to true after using the connection and calling on_client_disconnected()
 
         friend class Server;
     };

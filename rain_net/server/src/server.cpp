@@ -16,6 +16,8 @@
 
 #include "rain_net/internal/error.hpp"
 
+using namespace std::string_literals;
+
 namespace rain_net {
     Server::~Server() {
         stop();
@@ -26,7 +28,7 @@ namespace rain_net {
             asio_context.restart();
         }
 
-        clients.create_pool(max_clients);
+        pool.create(max_clients);
 
         const auto endpoint {asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)};
 
@@ -35,7 +37,7 @@ namespace rain_net {
             acceptor.bind(endpoint);
             acceptor.listen();
         } catch (const std::system_error& e) {
-            on_log("Unexpected error: " + std::string(e.what()));
+            on_log("Unexpected error: "s + e.what());
             throw ConnectionError(e.what());
         }
 
@@ -47,10 +49,10 @@ namespace rain_net {
             try {
                 asio_context.run();
             } catch (const std::system_error& e) {
-                on_log("Unexpected error: " + std::string(e.what()));
+                on_log("Unexpected error: "s + e.what());
                 error = std::make_exception_ptr(ConnectionError(e.what()));
             } catch (const ConnectionError& e) {
-                on_log("Unexpected error: " + std::string(e.what()));
+                on_log("Unexpected error: "s + e.what());
                 error = std::current_exception();
             }
         });
@@ -59,8 +61,10 @@ namespace rain_net {
     }
 
     void Server::stop() {
+        running = false;
+
         // Don't prime the context, if it has been stopped,
-        // because it will do the work after restart and meaning use after free
+        // because it will do the work after restart, meaning use after free
         if (!asio_context.stopped()) {
             for (const auto& connection : connections) {
                 if (connection != nullptr) {
@@ -69,10 +73,10 @@ namespace rain_net {
             }
         }
 
-        running = false;
-
         if (acceptor.is_open()) {
-            acceptor.close();
+            try {
+                acceptor.close();
+            } catch (const std::system_error&) {}
         }
 
         if (context_thread.joinable()) {
@@ -84,6 +88,10 @@ namespace rain_net {
         }
 
         connections.clear();
+
+        new_connections.clear();
+
+        incoming_messages.clear();
 
         error = nullptr;
     }
@@ -106,7 +114,7 @@ namespace rain_net {
                 // Must close the socket immediately
 
                 connection->tcp_socket.close();
-                clients.deallocate_id(connection->get_id());
+                pool.deallocate_id(connection->get_id());
             }
         }
     }
@@ -128,18 +136,13 @@ namespace rain_net {
             std::rethrow_exception(error);
         }
 
-        const auto& list {connections};
-
-        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
-            const auto& connection = *iter;
+        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
+            const auto& connection {*iter};
 
             assert(connection != nullptr);
 
             if (!connection->is_open()) {
-                on_client_disconnected(*this, connection);
-                clients.deallocate_id(connection->get_id());
-
-                if ((iter = connections.erase_after(before_iter)) == list.end()) {
+                if (maybe_client_disconnected(connection, iter, before_iter)) {
                     break;
                 }
             }
@@ -149,10 +152,8 @@ namespace rain_net {
     void Server::send_message(std::shared_ptr<ClientConnection> connection, const Message& message) {
         assert(connection != nullptr);
 
-        if (!connection->is_open()) {  // FIXME search through current connections; don't call on_client_disconnected multiple times
-            on_client_disconnected(*this, connection);
-            clients.deallocate_id(connection->get_id());
-            connections.remove(connection);
+        if (!connection->is_open()) {
+            maybe_client_disconnected(connection);
             return;
         }
 
@@ -160,18 +161,13 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message) {
-        const auto& list {connections};
-
-        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
+        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
             assert(connection != nullptr);
 
             if (!connection->is_open()) {
-                on_client_disconnected(*this, connection);
-                clients.deallocate_id(connection->get_id());
-
-                if ((iter = connections.erase_after(before_iter)) == list.end()) {
+                if (maybe_client_disconnected(connection, iter, before_iter)) {
                     break;
                 }
 
@@ -183,9 +179,7 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception) {
-        const auto& list {connections};
-
-        for (auto before_iter {list.before_begin()}, iter {list.begin()}; iter != list.end(); before_iter++, iter++) {
+        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
             assert(connection != nullptr);
@@ -195,10 +189,7 @@ namespace rain_net {
             }
 
             if (!connection->is_open()) {
-                on_client_disconnected(*this, connection);
-                clients.deallocate_id(connection->get_id());
-
-                if ((iter = connections.erase_after(before_iter)) == list.end()) {
+                if (maybe_client_disconnected(connection, iter, before_iter)) {
                     break;
                 }
 
@@ -224,7 +215,7 @@ namespace rain_net {
                         std::to_string(socket.remote_endpoint().port())
                     );
 
-                    const auto new_id {clients.allocate_id()};
+                    const auto new_id {pool.allocate_id()};
 
                     if (!new_id) {
                         socket.close();
@@ -250,5 +241,30 @@ namespace rain_net {
                 task_accept_connection();
             }
         );
+    }
+
+    void Server::maybe_client_disconnected(std::shared_ptr<ClientConnection> connection) {
+        if (connection->used) {
+            return;
+        }
+
+        on_client_disconnected(*this, connection);
+        pool.deallocate_id(connection->get_id());
+        connections.remove(connection);
+
+        connection->used = true;
+    }
+
+    bool Server::maybe_client_disconnected(std::shared_ptr<ClientConnection> connection, ConnectionsIter& iter, ConnectionsIter before_iter) {
+        if (connection->used) {
+            return false;
+        }
+
+        on_client_disconnected(*this, connection);
+        pool.deallocate_id(connection->get_id());
+
+        connection->used = true;
+
+        return (iter = connections.erase_after(before_iter)) == connections.end();
     }
 }

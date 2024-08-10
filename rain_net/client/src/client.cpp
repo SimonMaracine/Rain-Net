@@ -59,7 +59,7 @@ namespace rain_net {
 
     void Client::disconnect() {
         // Don't prime the context, if it has been stopped,
-        // because it will do the work after restart and meaning use after free
+        // because it will do the work after restart, meaning use after free
         if (!asio_context.stopped()) {
             if (connection != nullptr) {
                 connection->close();
@@ -71,6 +71,8 @@ namespace rain_net {
         }
 
         connection.reset();
+
+        incoming_messages.clear();
 
         error = nullptr;
     }
