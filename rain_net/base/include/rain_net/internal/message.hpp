@@ -61,8 +61,6 @@ namespace rain_net {
         // Write raw data to the message
         Message& write(const void* data, std::size_t size);
     private:
-        Message() noexcept = default;
-
         void resize(std::size_t additional_size);
 
         internal::MsgHeader m_header;
