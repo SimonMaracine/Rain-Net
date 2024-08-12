@@ -32,6 +32,7 @@ namespace rain_net {
     // Messages can only contain data from trivially copyable types
     class Message final {
     public:
+        Message() noexcept = default;
         explicit Message(std::uint16_t id) noexcept;
         Message(internal::MsgHeader header, std::unique_ptr<unsigned char[]>&& payload) noexcept;
 
