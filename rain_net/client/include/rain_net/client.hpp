@@ -26,7 +26,7 @@
 
 namespace rain_net {
     // Base class for the client application
-    class Client {
+    class Client final {
     public:
         Client() = default;
         ~Client();

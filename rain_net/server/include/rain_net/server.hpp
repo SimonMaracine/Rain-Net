@@ -32,7 +32,7 @@
 
 namespace rain_net {
     // Base class for the server program
-    class Server {
+    class Server final {
     public:
         // Default capacity of clients
         static constexpr std::uint32_t MAX_CLIENTS {std::numeric_limits<std::uint16_t>::max()};
