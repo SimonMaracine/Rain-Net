@@ -14,17 +14,17 @@
 namespace rain_net {
     namespace internal {
         void Connection::close() {
-            asio::post(asio_context, [this]() {
-                if (!tcp_socket.is_open()) {
+            asio::post(m_asio_context, [this]() {
+                if (!m_tcp_socket.is_open()) {
                     return;
                 }
 
-                tcp_socket.close();
+                m_tcp_socket.close();
             });
         }
 
         bool Connection::is_open() const {
-            return tcp_socket.is_open();
+            return m_tcp_socket.is_open();
         }
     }
 }

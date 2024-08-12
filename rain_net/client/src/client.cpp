@@ -2,6 +2,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <utility>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
@@ -23,11 +24,11 @@ namespace rain_net {
     }
 
     void Client::connect(std::string_view host, std::uint16_t port) {
-        if (asio_context.stopped()) {
-            asio_context.restart();
+        if (m_asio_context.stopped()) {
+            m_asio_context.restart();
         }
 
-        asio::ip::tcp::resolver resolver {asio_context};
+        asio::ip::tcp::resolver resolver {m_asio_context};
 
         asio::ip::tcp::resolver::results_type endpoints;
 
@@ -37,22 +38,22 @@ namespace rain_net {
             throw ConnectionError(e.what());
         }
 
-        connection = std::make_unique<ServerConnection>(
-            asio_context,
-            asio::ip::tcp::socket(asio_context),
-            incoming_messages,
+        m_connection = std::make_unique<ServerConnection>(
+            m_asio_context,
+            asio::ip::tcp::socket(m_asio_context),
+            m_incoming_messages,
             endpoints
         );
 
-        connection->connect();
+        m_connection->connect();
 
-        context_thread = std::thread([this]() {
+        m_context_thread = std::thread([this]() {
             try {
-                asio_context.run();
+                m_asio_context.run();
             } catch (const std::system_error& e) {
-                error = std::make_exception_ptr(ConnectionError(e.what()));
+                m_error = std::make_exception_ptr(ConnectionError(e.what()));
             } catch (const ConnectionError& e) {
-                error = std::current_exception();
+                m_error = std::current_exception();
             }
         });
     }
@@ -60,52 +61,55 @@ namespace rain_net {
     void Client::disconnect() {
         // Don't prime the context, if it has been stopped,
         // because it will do the work after restart, meaning use after free
-        if (!asio_context.stopped()) {
-            if (connection != nullptr) {
-                connection->close();
+        if (!m_asio_context.stopped()) {
+            if (m_connection != nullptr) {
+                m_connection->close();
             }
         }
 
-        if (context_thread.joinable()) {
-            context_thread.join();
+        if (m_context_thread.joinable()) {
+            m_context_thread.join();
         }
 
-        connection.reset();
+        m_connection.reset();
 
-        incoming_messages.clear();
-
-        error = nullptr;
+        m_incoming_messages.clear();
     }
 
-    bool Client::connection_established() const {
-        if (error) {
-            std::rethrow_exception(error);
-        }
+    bool Client::connection_established() {
+        throw_if_error();
 
-        if (connection == nullptr) {
+        if (m_connection == nullptr) {
             return false;
         }
 
-        return connection->connection_established();
+        return m_connection->connection_established();
     }
 
     Message Client::next_message() {
-        if (error) {
-            std::rethrow_exception(error);
-        }
+        throw_if_error();
 
-        return incoming_messages.pop_front();
+        return m_incoming_messages.pop_front();
     }
 
     bool Client::available_messages() const {
-        return !incoming_messages.empty();
+        return !m_incoming_messages.empty();
     }
 
     void Client::send_message(const Message& message) {
-        if (connection == nullptr) {
+        if (m_connection == nullptr) {
             return;
         }
 
-        connection->send(message);
+        m_connection->send(message);
+    }
+
+    void Client::throw_if_error() {
+        if (m_error) {
+            disconnect();
+
+            const auto error {std::exchange(m_error, nullptr)};
+            std::rethrow_exception(error);
+        }
     }
 }

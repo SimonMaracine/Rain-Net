@@ -24,119 +24,111 @@ namespace rain_net {
     }
 
     void Server::start(std::uint16_t port, std::uint32_t max_clients) {
-        if (asio_context.stopped()) {
-            asio_context.restart();
+        if (m_asio_context.stopped()) {
+            m_asio_context.restart();
         }
 
-        pool.create(max_clients);
+        m_pool.create(max_clients);
 
         const auto endpoint {asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)};
 
         try {
-            acceptor.open(endpoint.protocol());
-            acceptor.bind(endpoint);
-            acceptor.listen();
+            m_acceptor.open(endpoint.protocol());
+            m_acceptor.bind(endpoint);
+            m_acceptor.listen();
         } catch (const std::system_error& e) {
-            on_log("Unexpected error: "s + e.what());
+            m_on_log("Unexpected error: "s + e.what());
             throw ConnectionError(e.what());
         }
 
-        running = true;
+        m_running = true;
 
         task_accept_connection();
 
-        context_thread = std::thread([this]() {
+        m_context_thread = std::thread([this]() {
             try {
-                asio_context.run();
+                m_asio_context.run();
             } catch (const std::system_error& e) {
-                on_log("Unexpected error: "s + e.what());
-                error = std::make_exception_ptr(ConnectionError(e.what()));
+                m_on_log("Unexpected error: "s + e.what());
+                m_error = std::make_exception_ptr(ConnectionError(e.what()));
             } catch (const ConnectionError& e) {
-                on_log("Unexpected error: "s + e.what());
-                error = std::current_exception();
+                m_on_log("Unexpected error: "s + e.what());
+                m_error = std::current_exception();
             }
         });
 
-        on_log("Server started (port " + std::to_string(port) + ", max " + std::to_string(max_clients) + " clients)");
+        m_on_log("Server started (port " + std::to_string(port) + ", max " + std::to_string(max_clients) + " clients)");
     }
 
     void Server::stop() {
-        running = false;
+        m_running = false;
 
         // Don't prime the context, if it has been stopped,
         // because it will do the work after restart, meaning use after free
-        if (!asio_context.stopped()) {
-            for (const auto& connection : connections) {
+        if (!m_asio_context.stopped()) {
+            for (const auto& connection : m_connections) {
                 if (connection != nullptr) {
                     connection->close();
                 }
             }
         }
 
-        if (acceptor.is_open()) {
+        if (m_acceptor.is_open()) {
             try {
-                acceptor.close();
+                m_acceptor.close();
             } catch (const std::system_error&) {}
         }
 
-        if (context_thread.joinable()) {
-            context_thread.join();
+        if (m_context_thread.joinable()) {
+            m_context_thread.join();
         }
 
-        for (auto& connection : connections) {
+        for (auto& connection : m_connections) {
             connection.reset();
         }
 
-        connections.clear();
+        m_connections.clear();
 
-        new_connections.clear();
+        m_new_connections.clear();
 
-        incoming_messages.clear();
-
-        error = nullptr;
+        m_incoming_messages.clear();
     }
 
     void Server::accept_connections() {
-        if (error) {
-            std::rethrow_exception(error);
-        }
+        throw_if_error();
 
-        // This function may only pop connections and the accepting thread may only push connections
+        // This function may only pop m_connections and the accepting thread may only push m_connections
 
-        while (!new_connections.empty()) {
-            const auto connection {new_connections.pop_front()};
+        while (!m_new_connections.empty()) {
+            const auto connection {m_new_connections.pop_front()};
 
-            if (on_client_connected(*this, connection)) {
-                connections.push_front(connection);
+            if (m_on_client_connected(*this, connection)) {
+                m_connections.push_front(connection);
                 connection->start_communication();
             } else {
                 // The server side code must not keep any reference to the connection at this point
                 // Must close the socket immediately
 
-                connection->tcp_socket.close();
-                pool.deallocate_id(connection->get_id());
+                connection->m_tcp_socket.close();
+                m_pool.deallocate_id(connection->get_id());
             }
         }
     }
 
     std::pair<Message, std::shared_ptr<ClientConnection>> Server::next_message() {
-        if (error) {
-            std::rethrow_exception(error);
-        }
+        throw_if_error();
 
-        return incoming_messages.pop_front();
+        return m_incoming_messages.pop_front();
     }
 
     bool Server::available_messages() const {
-        return !incoming_messages.empty();
+        return !m_incoming_messages.empty();
     }
 
     void Server::check_connections() {
-        if (error) {
-            std::rethrow_exception(error);
-        }
+        throw_if_error();
 
-        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
+        for (auto before_iter {m_connections.before_begin()}, iter {m_connections.begin()}; iter != m_connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
             assert(connection != nullptr);
@@ -161,7 +153,7 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message) {
-        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
+        for (auto before_iter {m_connections.before_begin()}, iter {m_connections.begin()}; iter != m_connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
             assert(connection != nullptr);
@@ -179,7 +171,7 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception) {
-        for (auto before_iter {connections.before_begin()}, iter {connections.begin()}; iter != connections.end(); before_iter++, iter++) {
+        for (auto before_iter {m_connections.before_begin()}, iter {m_connections.begin()}; iter != m_connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
             assert(connection != nullptr);
@@ -200,41 +192,50 @@ namespace rain_net {
         }
     }
 
+    void Server::throw_if_error() {
+        if (m_error) {
+            stop();
+
+            const auto error {std::exchange(m_error, nullptr)};
+            std::rethrow_exception(error);
+        }
+    }
+
     void Server::task_accept_connection() {
         // In this thread IDs are allocated, but in the main thread they are freed
 
-        acceptor.async_accept(
+        m_acceptor.async_accept(
             [this](asio::error_code ec, asio::ip::tcp::socket socket) {
                 if (ec) {
-                    on_log("Could not accept new connection: " + ec.message());
+                    m_on_log("Could not accept new connection: " + ec.message());
                 } else {
-                    on_log(
+                    m_on_log(
                         "Accepted new connection: " +
                         socket.remote_endpoint().address().to_string() +
                         ", " +
                         std::to_string(socket.remote_endpoint().port())
                     );
 
-                    const auto new_id {pool.allocate_id()};
+                    const auto new_id {m_pool.allocate_id()};
 
                     if (!new_id) {
                         socket.close();
 
-                        on_log("Actively rejected connection; ran out of IDs");
+                        m_on_log("Actively rejected connection; ran out of IDs");
                     } else {
-                        new_connections.push_back(
+                        m_new_connections.push_back(
                             std::make_shared<ClientConnection>(
-                                asio_context,
+                                m_asio_context,
                                 std::move(socket),
-                                incoming_messages,
+                                m_incoming_messages,
                                 *new_id,
-                                on_log
+                                m_on_log
                             )
                         );
                     }
                 }
 
-                if (!running) {
+                if (!m_running) {
                     return;
                 }
 
@@ -244,27 +245,27 @@ namespace rain_net {
     }
 
     void Server::maybe_client_disconnected(std::shared_ptr<ClientConnection> connection) {
-        if (connection->used) {
+        if (connection->m_used) {
             return;
         }
 
-        on_client_disconnected(*this, connection);
-        pool.deallocate_id(connection->get_id());
-        connections.remove(connection);
+        m_on_client_disconnected(*this, connection);
+        m_pool.deallocate_id(connection->get_id());
+        m_connections.remove(connection);
 
-        connection->used = true;
+        connection->m_used = true;
     }
 
     bool Server::maybe_client_disconnected(std::shared_ptr<ClientConnection> connection, ConnectionsIter& iter, ConnectionsIter before_iter) {
-        if (connection->used) {
+        if (connection->m_used) {
             return false;
         }
 
-        on_client_disconnected(*this, connection);
-        pool.deallocate_id(connection->get_id());
+        m_on_client_disconnected(*this, connection);
+        m_pool.deallocate_id(connection->get_id());
 
-        connection->used = true;
+        connection->m_used = true;
 
-        return (iter = connections.erase_after(before_iter)) == connections.end();
+        return (iter = m_connections.erase_after(before_iter)) == m_connections.end();
     }
 }

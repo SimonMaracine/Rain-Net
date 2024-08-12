@@ -20,8 +20,10 @@ and then write this in `CMakeLists.txt`:
 
 ```cmake
 add_subdirectory(<path/to/submodule>)
-target_link_libraries(<target> PRIVATE rain_net)
+target_link_libraries(<target> PRIVATE rain_net_client)  # rain_net_client/rain_net_server
 ```
+
+Link against the client or server target, whichever you're using in your binary.
 
 To build the tests, set this variable before `add_subdirectory(...)`:
 

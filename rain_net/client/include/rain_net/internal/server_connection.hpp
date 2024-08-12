@@ -17,8 +17,8 @@ namespace rain_net {
             internal::SyncQueue<Message>& incoming_messages,
             const asio::ip::tcp::resolver::results_type& endpoints
         )
-            : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            endpoints(endpoints) {}
+            : internal::Connection(asio_context, std::move(tcp_socket)), m_incoming_messages(incoming_messages),
+            m_endpoints(endpoints) {}
 
         // Send a message asynchronously
         void send(const Message& message);
@@ -33,9 +33,9 @@ namespace rain_net {
         void task_send_message(const Message& message);
         void task_connect_to_server();
 
-        internal::SyncQueue<Message>& incoming_messages;
-        std::atomic_bool established_connection {false};
-        asio::ip::tcp::resolver::results_type endpoints;
+        internal::SyncQueue<Message>& m_incoming_messages;
+        std::atomic_bool m_established_connection {false};
+        asio::ip::tcp::resolver::results_type m_endpoints;
 
         friend class Client;
     };

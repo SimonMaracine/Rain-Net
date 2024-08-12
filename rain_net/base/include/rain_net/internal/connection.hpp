@@ -23,7 +23,7 @@ namespace rain_net {
         class Connection {
         protected:
             Connection(asio::io_context& asio_context, asio::ip::tcp::socket&& tcp_socket)
-                : asio_context(asio_context), tcp_socket(std::move(tcp_socket)) {}
+                : m_asio_context(asio_context), m_tcp_socket(std::move(tcp_socket)) {}
 
             ~Connection() = default;
 
@@ -35,11 +35,11 @@ namespace rain_net {
             void close();
             bool is_open() const;
 
-            asio::io_context& asio_context;
-            asio::ip::tcp::socket tcp_socket;
+            asio::io_context& m_asio_context;
+            asio::ip::tcp::socket m_tcp_socket;
 
-            internal::SyncQueue<internal::BasicMessage> outgoing_messages;
-            internal::BasicMessage current_incoming_message;
+            internal::SyncQueue<internal::BasicMessage> m_outgoing_messages;
+            internal::BasicMessage m_current_incoming_message;
         };
 
         template<typename T>

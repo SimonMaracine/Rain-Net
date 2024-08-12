@@ -64,8 +64,8 @@ namespace rain_net {
 
         void resize(std::size_t additional_size);
 
-        internal::MsgHeader header;
-        std::unique_ptr<unsigned char[]> payload;
+        internal::MsgHeader m_header;
+        std::unique_ptr<unsigned char[]> m_payload;
 
         friend class MessageReader;
         friend internal::BasicMessage internal::clone_message(const Message& message);
@@ -89,7 +89,7 @@ namespace rain_net {
         // Start reading the contents of a message
         MessageReader& operator()(const Message& message) noexcept;
     private:
-        std::size_t pointer {};
-        const Message* msg {nullptr};
+        std::size_t m_pointer {};
+        const Message* m_message {nullptr};
     };
 }

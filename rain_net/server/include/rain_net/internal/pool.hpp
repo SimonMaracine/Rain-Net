@@ -23,11 +23,11 @@ namespace rain_net {
         private:
             std::optional<std::uint32_t> search_and_allocate_id(std::uint32_t begin, std::uint32_t end) noexcept;
 
-            std::unique_ptr<bool[]> pool;  // False means it's not allocated
-            std::uint32_t size {};
-            std::uint32_t id_pointer {};
+            std::unique_ptr<bool[]> m_pool;  // False means it's not allocated
+            std::uint32_t m_size {};
+            std::uint32_t m_id_pointer {};
 
-            std::mutex mutex;
+            std::mutex m_mutex;
         };
     }
 }

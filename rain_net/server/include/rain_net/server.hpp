@@ -44,8 +44,8 @@ namespace rain_net {
             std::function<void(Server&, std::shared_ptr<ClientConnection>)> on_client_disconnected,
             std::function<void(const std::string&)> on_log = ON_LOG
         )
-            : acceptor(asio_context), on_client_connected(std::move(on_client_connected)),
-            on_client_disconnected(std::move(on_client_disconnected)), on_log(std::move(on_log)) {}
+            : m_acceptor(m_asio_context), m_on_client_connected(std::move(on_client_connected)),
+            m_on_client_disconnected(std::move(on_client_disconnected)), m_on_log(std::move(on_log)) {}
 
         ~Server();
 
@@ -63,7 +63,6 @@ namespace rain_net {
         // Disconnect from all the clients and stop the internal event loop
         // You may call this at any time
         // After a call to stop(), you may restart by calling start() again
-        // If a connection error occurrs, it must be immediately called
         // It is automatically called in the destructor
         void stop();
 
@@ -96,24 +95,25 @@ namespace rain_net {
     private:
         using ConnectionsIter = std::forward_list<std::shared_ptr<ClientConnection>>::iterator;
 
+        void throw_if_error();
         void task_accept_connection();
         void maybe_client_disconnected(std::shared_ptr<ClientConnection> connection);
         bool maybe_client_disconnected(std::shared_ptr<ClientConnection> connection, ConnectionsIter& iter, ConnectionsIter before_iter);
 
-        std::forward_list<std::shared_ptr<ClientConnection>> connections;
-        internal::SyncQueue<std::shared_ptr<ClientConnection>> new_connections;
-        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>> incoming_messages;
+        std::forward_list<std::shared_ptr<ClientConnection>> m_connections;
+        internal::SyncQueue<std::shared_ptr<ClientConnection>> m_new_connections;
+        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>> m_incoming_messages;
 
-        std::thread context_thread;
-        asio::io_context asio_context;
-        asio::ip::tcp::acceptor acceptor;
+        std::thread m_context_thread;
+        asio::io_context m_asio_context;
+        asio::ip::tcp::acceptor m_acceptor;
 
-        std::function<bool(Server&, std::shared_ptr<ClientConnection>)> on_client_connected;
-        std::function<void(Server&, std::shared_ptr<ClientConnection>)> on_client_disconnected;
-        std::function<void(const std::string&)> on_log;
+        std::function<bool(Server&, std::shared_ptr<ClientConnection>)> m_on_client_connected;
+        std::function<void(Server&, std::shared_ptr<ClientConnection>)> m_on_client_disconnected;
+        std::function<void(const std::string&)> m_on_log;
 
-        internal::Pool pool;
-        std::exception_ptr error;
-        bool running {false};
+        internal::Pool m_pool;
+        std::exception_ptr m_error;
+        bool m_running {false};
     };
 }

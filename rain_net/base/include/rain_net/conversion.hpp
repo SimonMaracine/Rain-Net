@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <cstring>
 #include <type_traits>
-#include <cstddef>
 #include <utility>
 
 // https://developer.ibm.com/articles/au-endianc/

@@ -44,14 +44,13 @@ namespace rain_net {
         // Disconnect from the server and stop the internal event loop
         // You may call this at any time
         // After a call to disconnect(), you may reconnect by calling connect() again
-        // If a connection error occurs, it must be immediately called
         // It is automatically called in the destructor
         void disconnect();
 
         // After a call to connect(), check if the connection has been established
         // You may call this in a loop
         // Throws connection errors
-        bool connection_established() const;
+        bool connection_established();
 
         // Poll the next incoming message from the queue
         // You may call it in a loop to process as many messages as you want
@@ -65,12 +64,14 @@ namespace rain_net {
         // Does nothing, if the connection is not established
         void send_message(const Message& message);
     private:
-        std::unique_ptr<ServerConnection> connection;
-        internal::SyncQueue<Message> incoming_messages;
+        void throw_if_error();
 
-        std::thread context_thread;
-        asio::io_context asio_context;
+        std::unique_ptr<ServerConnection> m_connection;
+        internal::SyncQueue<Message> m_incoming_messages;
 
-        std::exception_ptr error;
+        std::thread m_context_thread;
+        asio::io_context m_asio_context;
+
+        std::exception_ptr m_error;
     };
 }

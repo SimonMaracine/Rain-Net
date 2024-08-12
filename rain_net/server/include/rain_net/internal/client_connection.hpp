@@ -21,8 +21,8 @@ namespace rain_net {
             std::uint32_t client_id,
             const std::function<void(const std::string&)>& log
         )
-            : internal::Connection(asio_context, std::move(tcp_socket)), incoming_messages(incoming_messages),
-            log(log), client_id(client_id) {}
+            : internal::Connection(asio_context, std::move(tcp_socket)), m_incoming_messages(incoming_messages),
+            m_log(log), m_client_id(client_id) {}
 
         // Send a message asynchronously
         void send(const Message& message);
@@ -38,10 +38,10 @@ namespace rain_net {
         void task_read_payload();
         void task_send_message(const Message& message);
 
-        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& incoming_messages;
-        const std::function<void(const std::string&)>& log;
-        std::uint32_t client_id {};  // Given by the server
-        bool used {false};  // Set to true after using the connection and calling on_client_disconnected()
+        internal::SyncQueue<std::pair<Message, std::shared_ptr<ClientConnection>>>& m_incoming_messages;
+        const std::function<void(const std::string&)>& m_log;
+        std::uint32_t m_client_id {};  // Given by the server
+        bool m_used {false};  // Set to true after using the connection and calling on_client_disconnected()
 
         friend class Server;
     };
