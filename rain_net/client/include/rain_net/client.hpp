@@ -48,20 +48,20 @@ namespace rain_net {
         void disconnect();
 
         // After a call to connect(), check if the connection has been established
-        // You may call this in a loop
+        // You may call this in a loop until the connection succeeds or fails with an error
         // Throws connection errors
         bool connection_established();
 
         // Poll the next incoming message from the queue
         // You may call it in a loop to process as many messages as you want
-        // Throws connection errors
         Message next_message();
 
         // Check if there are available incoming messages
         bool available_messages() const;
 
         // Send a message to the server
-        // Does nothing, if the connection is not established
+        // Does not send anything, if the connection is not established
+        // Throws connection errors
         void send_message(const Message& message);
     private:
         void throw_if_error();

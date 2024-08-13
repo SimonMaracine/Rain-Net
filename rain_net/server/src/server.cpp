@@ -116,8 +116,6 @@ namespace rain_net {
     }
 
     std::pair<Message, std::shared_ptr<ClientConnection>> Server::next_message() {
-        throw_if_error();
-
         return m_incoming_messages.pop_front();
     }
 
@@ -142,6 +140,8 @@ namespace rain_net {
     }
 
     void Server::send_message(std::shared_ptr<ClientConnection> connection, const Message& message) {
+        throw_if_error();
+
         assert(connection != nullptr);
 
         if (!connection->is_open()) {
@@ -153,6 +153,8 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message) {
+        throw_if_error();
+
         for (auto before_iter {m_connections.before_begin()}, iter {m_connections.begin()}; iter != m_connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 
@@ -171,6 +173,8 @@ namespace rain_net {
     }
 
     void Server::send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception) {
+        throw_if_error();
+
         for (auto before_iter {m_connections.before_begin()}, iter {m_connections.begin()}; iter != m_connections.end(); before_iter++, iter++) {
             const auto& connection {*iter};
 

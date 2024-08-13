@@ -87,8 +87,6 @@ namespace rain_net {
     }
 
     Message Client::next_message() {
-        throw_if_error();
-
         return m_incoming_messages.pop_front();
     }
 
@@ -97,6 +95,8 @@ namespace rain_net {
     }
 
     void Client::send_message(const Message& message) {
+        throw_if_error();
+
         if (m_connection == nullptr) {
             return;
         }

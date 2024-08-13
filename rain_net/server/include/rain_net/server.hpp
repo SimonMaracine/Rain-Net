@@ -37,6 +37,7 @@ namespace rain_net {
         // Default capacity of clients
         static constexpr std::uint32_t MAX_CLIENTS {std::numeric_limits<std::uint16_t>::max()};
 
+        // Default log function
         static constexpr auto ON_LOG {[](const std::string&) {}};
 
         Server(
@@ -73,7 +74,6 @@ namespace rain_net {
 
         // Poll the next incoming message from the queue
         // You may call it in a loop to process as many messages as you want
-        // Throws connection errors
         std::pair<Message, std::shared_ptr<ClientConnection>> next_message();
 
         // Check if there are available incoming messages
@@ -85,12 +85,15 @@ namespace rain_net {
         void check_connections();
 
         // Send a message to a specific client; invokes on_client_disconnected() when needed
+        // Throws connection errors
         void send_message(std::shared_ptr<ClientConnection> connection, const Message& message);
 
         // Send a message to all clients; invokes on_client_disconnected() when needed
+        // Throws connection errors
         void send_message_broadcast(const Message& message);
 
         // Send a message to all clients except a specific client; invokes on_client_disconnected() when needed
+        // Throws connection errors
         void send_message_broadcast(const Message& message, std::shared_ptr<ClientConnection> exception);
     private:
         using ConnectionsIter = std::forward_list<std::shared_ptr<ClientConnection>>::iterator;
